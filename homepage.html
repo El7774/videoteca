@@ -671,7 +671,7 @@
   // ---------- Sessione / Logout ----------
   const authUser = localStorage.getItem('videoteca-auth') || sessionStorage.getItem('videoteca-auth');
   const sessionUserEl = document.getElementById('sessionUser');
-  if (sessionUserEl) sessionUserEl.innerHTML = 'Connesso come <strong>' + escapeHtml(authUser || '') + '</strong>';
+  if (sessionUserEl) sessionUserEl.innerHTML = 'Connesso come <a href="profilo.html" class="profile-link"><strong>' + escapeHtml(authUser || '') + '</strong></a>';
   const btnLogout = document.getElementById('btnLogout');
   if (btnLogout) btnLogout.onclick = () => {
     localStorage.removeItem('videoteca-auth');

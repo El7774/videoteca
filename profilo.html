@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profilo — Videoteca</title>
+<script>
+  // Guardia di accesso: senza sessione attiva si torna al login
+  if (!localStorage.getItem('videoteca-auth') && !sessionStorage.getItem('videoteca-auth')) {
+    window.location.replace('index.html');
+  }
+</script>
+<link rel="stylesheet" href="styles.css">
+
+</head>
+<body>
+<div class="wrap">
+  <div class="session-bar">
+    <a href="homepage.html" class="btn ghost">← Torna alla videoteca</a>
+    <button class="btn ghost" id="btnLogout">Esci</button>
+  </div>
+
+  <header>
+    <div>
+      <p class="eyebrow">Impostazioni account</p>
+      <h1>Profilo</h1>
+    </div>
+  </header>
+
+  <div class="profile-grid">
+
+    <div class="profile-section">
+      <h2>Account</h2>
+      <p class="profile-username">Username attuale: <strong id="profileUsername"></strong></p>
+    </div>
+
+    <div class="profile-section">
+      <h2>Cambia username</h2>
+      <div class="form-error" id="usernameError"></div>
+      <div class="form-success" id="usernameSuccess"></div>
+      <form id="usernameForm">
+        <div class="field">
+          <label>Nuovo username</label>
+          <input type="text" id="newUsername" placeholder="Nuovo username" required>
+        </div>
+        <div class="field">
+          <label>Password attuale</label>
+          <input type="password" id="usernameConfirmPassword" placeholder="Password attuale" required>
+        </div>
+        <button type="submit" class="btn primary">Aggiorna username</button>
+      </form>
+    </div>
+
+    <div class="profile-section">
+      <h2>Cambia password</h2>
+      <div class="form-error" id="passwordError"></div>
+      <div class="form-success" id="passwordSuccess"></div>
+      <form id="passwordForm">
+        <div class="field">
+          <label>Password attuale</label>
+          <input type="password" id="currentPassword" placeholder="Password attuale" required>
+        </div>
+        <div class="field">
+          <label>Nuova password</label>
+          <input type="password" id="newPassword" placeholder="Nuova password" required>
+        </div>
+        <div class="field">
+          <label>Conferma nuova password</label>
+          <input type="password" id="newPasswordConfirm" placeholder="Conferma nuova password" required>
+        </div>
+        <button type="submit" class="btn primary">Aggiorna password</button>
+      </form>
+    </div>
+
+    <div class="profile-section danger-zone">
+      <h2>Zona pericolosa</h2>
+      <p class="hint">Eliminando l'account perderai l'accesso con queste credenziali. I titoli salvati nella videoteca restano su questo dispositivo, perché non sono legati a un singolo account.</p>
+      <button class="btn danger" id="btnDeleteAccount">Elimina account</button>
+    </div>
+
+  </div>
+</div>
+
+<div class="overlay" id="deleteOverlay" style="display:none;">
+  <div class="modal">
+    <h2>Elimina account</h2>
+    <p>Questa azione è irreversibile. Inserisci la password di <strong id="deleteUsernameLabel"></strong> per confermare.</p>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="deleteConfirmPassword" placeholder="Password">
+    </div>
+    <div class="form-error" id="deleteError"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="deleteCancel">Annulla</button>
+      <button class="btn danger" id="deleteConfirm">Elimina definitivamente</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const USERS_KEY = 'videoteca-users';
+  const AUTH_KEY = 'videoteca-auth';
+
+  function getUsers() {
+    try { return JSON.parse(localStorage.getItem(USERS_KEY)) || []; }
+    catch (e) { return []; }
+  }
+  function saveUsers(users) {
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  }
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+  function showMsg(el, message) {
+    el.textContent = message;
+    el.classList.add('show');
+  }
+  function hideMsg(el) {
+    el.classList.remove('show');
+  }
+
+  // Individua dove risiede la sessione corrente (locale o solo per questa scheda)
+  const usesLocal = !!localStorage.getItem(AUTH_KEY);
+  let currentUsername = localStorage.getItem(AUTH_KEY) || sessionStorage.getItem(AUTH_KEY);
+
+  document.getElementById('profileUsername').textContent = currentUsername || '';
+  document.getElementById('deleteUsernameLabel').textContent = currentUsername || '';
+
+  function setSessionUsername(username) {
+    currentUsername = username;
+    if (usesLocal) localStorage.setItem(AUTH_KEY, username);
+    else sessionStorage.setItem(AUTH_KEY, username);
+    document.getElementById('profileUsername').textContent = username;
+    document.getElementById('deleteUsernameLabel').textContent = username;
+  }
+
+  // ---------- Logout ----------
+  document.getElementById('btnLogout').onclick = () => {
+    localStorage.removeItem(AUTH_KEY);
+    sessionStorage.removeItem(AUTH_KEY);
+    window.location.replace('index.html');
+  };
+
+  // ---------- Cambia username ----------
+  const usernameError = document.getElementById('usernameError');
+  const usernameSuccess = document.getElementById('usernameSuccess');
+  document.getElementById('usernameForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    hideMsg(usernameError); hideMsg(usernameSuccess);
+
+    const newUsername = document.getElementById('newUsername').value.trim();
+    const password = document.getElementById('usernameConfirmPassword').value;
+
+    if (!newUsername || !password) {
+      showMsg(usernameError, 'Compila entrambi i campi.');
+      return;
+    }
+
+    const users = getUsers();
+    const meIndex = users.findIndex(u => u.username === currentUsername && u.password === password);
+    if (meIndex === -1) {
+      showMsg(usernameError, 'Password non corretta.');
+      return;
+    }
+
+    if (newUsername !== currentUsername && users.some(u => u.username === newUsername)) {
+      showMsg(usernameError, 'Username già in uso.');
+      return;
+    }
+
+    users[meIndex].username = newUsername;
+    saveUsers(users);
+    setSessionUsername(newUsername);
+
+    document.getElementById('newUsername').value = '';
+    document.getElementById('usernameConfirmPassword').value = '';
+    showMsg(usernameSuccess, 'Username aggiornato.');
+  });
+
+  // ---------- Cambia password ----------
+  const passwordError = document.getElementById('passwordError');
+  const passwordSuccess = document.getElementById('passwordSuccess');
+  document.getElementById('passwordForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    hideMsg(passwordError); hideMsg(passwordSuccess);
+
+    const current = document.getElementById('currentPassword').value;
+    const next = document.getElementById('newPassword').value;
+    const confirm = document.getElementById('newPasswordConfirm').value;
+
+    if (!current || !next || !confirm) {
+      showMsg(passwordError, 'Compila tutti i campi.');
+      return;
+    }
+    if (next !== confirm) {
+      showMsg(passwordError, 'Le nuove password non coincidono.');
+      return;
+    }
+
+    const users = getUsers();
+    const meIndex = users.findIndex(u => u.username === currentUsername && u.password === current);
+    if (meIndex === -1) {
+      showMsg(passwordError, 'Password attuale non corretta.');
+      return;
+    }
+
+    users[meIndex].password = next;
+    saveUsers(users);
+
+    document.getElementById('currentPassword').value = '';
+    document.getElementById('newPassword').value = '';
+    document.getElementById('newPasswordConfirm').value = '';
+    showMsg(passwordSuccess, 'Password aggiornata.');
+  });
+
+  // ---------- Elimina account ----------
+  const deleteOverlay = document.getElementById('deleteOverlay');
+  const deleteError = document.getElementById('deleteError');
+
+  document.getElementById('btnDeleteAccount').onclick = () => {
+    document.getElementById('deleteConfirmPassword').value = '';
+    hideMsg(deleteError);
+    deleteOverlay.style.display = 'flex';
+    document.getElementById('deleteConfirmPassword').focus();
+  };
+  document.getElementById('deleteCancel').onclick = () => { deleteOverlay.style.display = 'none'; };
+  deleteOverlay.onclick = (e) => { if (e.target === deleteOverlay) deleteOverlay.style.display = 'none'; };
+
+  document.getElementById('deleteConfirm').onclick = () => {
+    const password = document.getElementById('deleteConfirmPassword').value;
+    hideMsg(deleteError);
+
+    const users = getUsers();
+    const meIndex = users.findIndex(u => u.username === currentUsername && u.password === password);
+    if (meIndex === -1) {
+      showMsg(deleteError, 'Password non corretta.');
+      return;
+    }
+
+    users.splice(meIndex, 1);
+    saveUsers(users);
+    localStorage.removeItem(AUTH_KEY);
+    sessionStorage.removeItem(AUTH_KEY);
+    window.location.replace('index.html');
+  };
+})();
+</script>
+</body>
+</html>
