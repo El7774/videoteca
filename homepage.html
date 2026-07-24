@@ -66,9 +66,10 @@
   </div>
 
   <div class="favorites-section" id="favoritesSection">
-    <div class="favorites-header">
+    <div class="favorites-header" id="favoritesHeader">
       <h2>❤ Preferiti</h2>
       <span class="favorites-count" id="favoritesCount">0</span>
+      <button class="favorites-toggle" id="favoritesToggle" title="Comprimi/espandi">▾</button>
     </div>
     <div class="grid" id="favoritesGrid"></div>
   </div>
@@ -123,6 +124,7 @@
   let mediaFilter = 'all';
   let newType = 'serie';
   let viewMode = 'rect';
+  let favoritesCollapsed = false;
   const toggledIds = new Set();
 
   function isCardExpanded(show){
@@ -205,6 +207,14 @@
   }
   function saveViewMode(){
     try{ localStorage.setItem(VIEW_STORAGE_KEY, viewMode); }catch(e){ /* non bloccante */ }
+  }
+
+  const FAVORITES_COLLAPSED_KEY = 'videoteca-favorites-collapsed';
+  function loadFavoritesCollapsed(){
+    try{ favoritesCollapsed = localStorage.getItem(FAVORITES_COLLAPSED_KEY) === '1'; }catch(e){ /* resta il default */ }
+  }
+  function saveFavoritesCollapsed(){
+    try{ localStorage.setItem(FAVORITES_COLLAPSED_KEY, favoritesCollapsed ? '1' : '0'); }catch(e){ /* non bloccante */ }
   }
 
   function saveShows(){
@@ -529,6 +539,8 @@
     const countEl = document.getElementById('favoritesCount');
     const favorites = shows.filter(s => s.favorite);
 
+    section.classList.toggle('collapsed', favoritesCollapsed);
+
     countEl.textContent = favorites.length;
     grid.innerHTML = '';
     grid.className = 'grid view-' + viewMode;
@@ -649,6 +661,13 @@
     };
   });
 
+  // ---------- Favorites collapse ----------
+  document.getElementById('favoritesHeader').onclick = () => {
+    favoritesCollapsed = !favoritesCollapsed;
+    saveFavoritesCollapsed();
+    renderFavorites();
+  };
+
   // ---------- Sessione / Logout ----------
   const authUser = localStorage.getItem('videoteca-auth') || sessionStorage.getItem('videoteca-auth');
   const sessionUserEl = document.getElementById('sessionUser');
@@ -663,6 +682,7 @@
   // ---------- Init ----------
   loadShows();
   loadViewMode();
+  loadFavoritesCollapsed();
   render();
 })();
 </script>
