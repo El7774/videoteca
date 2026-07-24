@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Videoteca — la mia collezione</title>
+<script>
+  // Guardia di accesso: senza sessione attiva si torna al login
+  if (!localStorage.getItem('videoteca-auth') && !sessionStorage.getItem('videoteca-auth')) {
+    window.location.replace('index.html');
+  }
+</script>
+<link rel="stylesheet" href="styles.css">
+
+</head>
+<body>
+<div class="wrap">
+  <div class="session-bar">
+    <span id="sessionUser"></span>
+    <button class="btn ghost" id="btnLogout">Esci</button>
+  </div>
+  <header>
+    <div>
+      <p class="eyebrow">Collezione personale · dati salvati solo su questo dispositivo</p>
+      <h1>Videoteca</h1>
+    </div>
+    <div class="stats-groups">
+      <div class="stat-group">
+        <p class="stat-group-title">Serie TV</p>
+        <div class="stat-group-row">
+          <div class="stat"><span class="n" id="statSerieTotal">0</span><span class="l">Totali</span></div>
+          <div class="stat"><span class="n" id="statSerieWatching">0</span><span class="l">In corso</span></div>
+          <div class="stat"><span class="n" id="statSerieDone">0</span><span class="l">Completate</span></div>
+        </div>
+      </div>
+      <div class="stat-group">
+        <p class="stat-group-title">Film</p>
+        <div class="stat-group-row">
+          <div class="stat"><span class="n" id="statFilmTotal">0</span><span class="l">Totali</span></div>
+          <div class="stat"><span class="n" id="statFilmPlanned">0</span><span class="l">Da vedere</span></div>
+          <div class="stat"><span class="n" id="statFilmDone">0</span><span class="l">Visti</span></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <div style="display:flex; gap: 14px; flex-wrap: wrap; align-items:center;">
+      <div class="media-toggle" id="mediaToggle">
+        <button class="media-btn active" data-media="all">Tutto</button>
+        <button class="media-btn" data-media="serie">Serie TV</button>
+        <button class="media-btn" data-media="film">Film</button>
+      </div>
+      <div class="view-toggle" id="viewToggle">
+        <button class="view-btn active" data-view="rect" title="Vista rettangolare">▭ Rettangolare</button>
+        <button class="view-btn" data-view="compact" title="Vista compatta">≡ Compatto</button>
+        <button class="view-btn" data-view="square" title="Vista a quadrati">▦ Quadrati</button>
+      </div>
+      <div class="tabs" id="tabs"></div>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" id="btnExport">Esporta dati</button>
+      <button class="btn ghost" id="btnImport">Importa dati</button>
+      <input type="file" id="fileImport" accept="application/json" style="display:none">
+      <button class="btn primary" id="btnAdd">+ Aggiungi titolo</button>
+    </div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="overlay" id="overlay" style="display:none;">
+  <div class="modal">
+    <h2>Nuovo titolo</h2>
+    <div class="field">
+      <label>Titolo</label>
+      <input type="text" id="newTitle" placeholder="Es. Breaking Bad">
+    </div>
+    <div class="field">
+      <label>Tipo</label>
+      <div class="radio-row" id="typeRow">
+        <div class="radio-opt sel" data-type="serie">Serie TV</div>
+        <div class="radio-opt" data-type="film">Film</div>
+      </div>
+    </div>
+    <div class="field" id="seasonsField">
+      <label>Numero di stagioni iniziali</label>
+      <input type="number" id="newSeasons" value="1" min="1" max="50">
+    </div>
+    <p class="hint">Potrai modificare stagioni ed episodi in qualsiasi momento dalla card del titolo.</p>
+    <div class="modal-actions">
+      <button class="btn ghost" id="btnCancel">Annulla</button>
+      <button class="btn primary" id="btnCreate">Crea</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="confirmOverlay" style="display:none;">
+  <div class="modal">
+    <h2>Conferma</h2>
+    <p id="confirmMessage"></p>
+    <div class="modal-actions">
+      <button class="btn ghost" id="confirmNo">Annulla</button>
+      <button class="btn primary" id="confirmYes">Conferma</button>
+    </div>
+  </div>
+</div>
+
+<div id="celebrationLayer"></div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'videoteca-collection-v1';
+  let shows = [];
+  let filter = 'all';
+  let mediaFilter = 'all';
+  let newType = 'serie';
+  let viewMode = 'rect';
+  const toggledIds = new Set();
+
+  function isCardExpanded(show){
+    const defaultExpanded = false;
+    return toggledIds.has(show.id) ? !defaultExpanded : defaultExpanded;
+  }
+
+  function showConfirm(message, onYes){
+    const el = document.getElementById('confirmOverlay');
+    document.getElementById('confirmMessage').textContent = message;
+    el.style.display = 'flex';
+    const yesBtn = document.getElementById('confirmYes');
+    const noBtn = document.getElementById('confirmNo');
+    const cleanup = () => { el.style.display = 'none'; yesBtn.onclick = null; noBtn.onclick = null; el.onclick = null; };
+    yesBtn.onclick = () => { cleanup(); onYes(); };
+    noBtn.onclick = () => { cleanup(); };
+    el.onclick = (e) => { if(e.target === el) cleanup(); };
+  }
+
+  function showNotice(message){
+    const t = document.createElement('div');
+    t.className = 'notice-toast';
+    t.textContent = message;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3200);
+  }
+
+  function celebrate(kind, title){
+    const layer = document.getElementById('celebrationLayer');
+    const count = kind === 'series' ? 70 : (kind === 'season' ? 45 : 30);
+    const colors = ['var(--orange)', 'var(--crimson)', 'var(--teal)', '#F2EDE4'];
+    for(let i=0;i<count;i++){
+      const p = document.createElement('div');
+      p.className = 'confetti-piece';
+      p.style.left = (Math.random()*100) + '%';
+      p.style.background = colors[Math.floor(Math.random()*colors.length)];
+      p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+      p.style.animationDuration = (1.5 + Math.random()*1.3) + 's';
+      p.style.animationDelay = (Math.random()*0.35) + 's';
+      layer.appendChild(p);
+      setTimeout(() => p.remove(), 3300);
+    }
+    const messages = {
+      film: '🎬 Film completato',
+      season: '📀 Stagione completata',
+      series: '🏆 Serie completata'
+    };
+    const toast = document.createElement('div');
+    toast.className = 'celebration-toast ' + kind;
+    toast.innerHTML = `<strong>${messages[kind]}</strong><span>${escapeHtml(title)}</span>`;
+    layer.appendChild(toast);
+    setTimeout(() => toast.remove(), 2900);
+  }
+
+  function loadShows(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      shows = raw ? JSON.parse(raw) : [];
+    }catch(e){
+      console.error('Errore nel caricamento dei dati locali', e);
+      shows = [];
+    }
+    ensureLastModified();
+  }
+
+  function ensureLastModified(){
+    const now = Date.now();
+    shows.forEach(s => {
+      if(!s.lastModifiedAt) s.lastModifiedAt = now;
+    });
+  }
+
+  const VIEW_STORAGE_KEY = 'videoteca-viewmode-v1';
+  function loadViewMode(){
+    try{
+      const raw = localStorage.getItem(VIEW_STORAGE_KEY);
+      if(raw === 'rect' || raw === 'compact' || raw === 'square') viewMode = raw;
+    }catch(e){ /* ignora, resta il default */ }
+  }
+  function saveViewMode(){
+    try{ localStorage.setItem(VIEW_STORAGE_KEY, viewMode); }catch(e){ /* non bloccante */ }
+  }
+
+  function saveShows(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(shows));
+    }catch(e){
+      console.error('Errore nel salvataggio dei dati locali', e);
+      showNotice('Non sono riuscito a salvare i dati nel browser. Lo spazio potrebbe essere pieno.');
+    }
+  }
+
+  function uid(){ return 'id_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+
+  function touchShow(show){
+    show.lastModifiedAt = Date.now();
+  }
+
+  function hashHue(str){
+    let h = 0;
+    for(let i=0;i<str.length;i++){ h = str.charCodeAt(i) + ((h<<5)-h); }
+    return Math.abs(h) % 360;
+  }
+
+  const STATUS_LABELS = {
+    planned: 'Da vedere',
+    watching: 'In corso',
+    completed: 'Completato',
+    dropped: 'Abbandonato'
+  };
+
+  const TABS = [
+    {key:'all', label:'Tutti'},
+    {key:'watching', label:'In corso'},
+    {key:'planned', label:'Da vedere'},
+    {key:'completed', label:'Completati'},
+    {key:'dropped', label:'Abbandonati'}
+  ];
+
+  function renderTabs(){
+    const tabsEl = document.getElementById('tabs');
+    tabsEl.innerHTML = '';
+    const subset = mediaFilter === 'all' ? shows : shows.filter(s => s.type === mediaFilter);
+    TABS.forEach(t => {
+      const count = t.key === 'all' ? subset.length : subset.filter(s => computeStatus(s) === t.key).length;
+      const btn = document.createElement('button');
+      btn.className = 'tab' + (filter === t.key ? ' active' : '');
+      btn.textContent = t.label + ' (' + count + ')';
+      btn.onclick = () => { filter = t.key; render(); };
+      tabsEl.appendChild(btn);
+    });
+  }
+
+  function renderMediaToggle(){
+    document.querySelectorAll('.media-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.media === mediaFilter);
+    });
+  }
+
+  function renderViewToggle(){
+    document.querySelectorAll('.view-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.view === viewMode);
+    });
+  }
+
+  function computeProgress(show){
+    let total = 0, watched = 0;
+    show.seasons.forEach(se => {
+      total += se.episodeCount;
+      watched += se.watched.filter(Boolean).length;
+    });
+    return {total, watched, pct: total ? Math.round((watched/total)*100) : 0};
+  }
+
+  const DROP_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000; // 30 giorni
+
+  function computeStatus(show){
+    const {total, watched} = computeProgress(show);
+    if(total === 0 || watched === 0) return 'planned';
+    if(watched >= total) return 'completed';
+    // stato intermedio: in corso, a meno che non sia inattivo da 30+ giorni
+    const last = show.lastModifiedAt || 0;
+    if(Date.now() - last > DROP_THRESHOLD_MS) return 'dropped';
+    return 'watching';
+  }
+
+  function renderStats(){
+    const serie = shows.filter(s => s.type === 'serie');
+    const film = shows.filter(s => s.type === 'film');
+    document.getElementById('statSerieTotal').textContent = serie.length;
+    document.getElementById('statSerieWatching').textContent = serie.filter(s=>computeStatus(s)==='watching').length;
+    document.getElementById('statSerieDone').textContent = serie.filter(s=>computeStatus(s)==='completed').length;
+    document.getElementById('statFilmTotal').textContent = film.length;
+    document.getElementById('statFilmPlanned').textContent = film.filter(s=>computeStatus(s)==='planned').length;
+    document.getElementById('statFilmDone').textContent = film.filter(s=>computeStatus(s)==='completed').length;
+  }
+
+  function renderGrid(){
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    grid.className = 'grid view-' + viewMode;
+    let list = mediaFilter === 'all' ? shows : shows.filter(s => s.type === mediaFilter);
+    list = filter === 'all' ? list : list.filter(s => computeStatus(s) === filter);
+
+    if(list.length === 0){
+      grid.innerHTML = '<div class="empty" style="grid-column: 1/-1;"><h2>Scaffale vuoto</h2><p>Aggiungi il tuo primo titolo per iniziare a tracciare.</p></div>';
+      return;
+    }
+
+    list.forEach(show => {
+      const hue = hashHue(show.title);
+      const {total, watched, pct} = computeProgress(show);
+      const statusKey = computeStatus(show);
+      const expanded = isCardExpanded(show);
+      const card = document.createElement('div');
+      card.className = 'card view-' + viewMode + (expanded ? ' expanded' : ' collapsed') + (viewMode === 'square' && expanded ? ' span-full' : '');
+
+      const head = document.createElement('div');
+      head.className = 'card-head';
+      head.style.background = `linear-gradient(135deg, hsla(${hue},45%,22%,1), hsla(${(hue+40)%360},35%,14%,1))`;
+
+      head.innerHTML = `
+        <div class="card-top-row">
+          <div class="title-row" data-action="toggle-expand" title="${expanded ? 'Comprimi' : 'Espandi'} stagioni ed episodi">
+            <span class="chevron">▾</span>
+            <div>
+              <span class="type-badge ${show.type}">${show.type === 'serie' ? 'Serie TV' : 'Film'}</span>
+              <h3>${escapeHtml(show.title)}</h3>
+            </div>
+          </div>
+          <button class="icon-btn" title="Elimina" data-action="delete">✕</button>
+        </div>
+        <span class="tile-progress">${watched}/${total} · ${pct}%</span>
+        <div class="meta-row">
+          <span class="status-badge ${statusKey}">${STATUS_LABELS[statusKey]}</span>
+          <div class="stars" data-action="stars">
+            ${[1,2,3,4,5].map(n => `<button class="star ${show.rating>=n?'on':''}" data-star="${n}">★</button>`).join('')}
+          </div>
+        </div>
+      `;
+
+      const body = document.createElement('div');
+      body.className = 'card-body';
+
+      const seasonsHtml = show.seasons.map((se, sIdx) => `
+        <div class="season-row" data-season="${sIdx}">
+          <div class="season-label-row">
+            <div class="season-tag-wrap">
+              <span class="season-tag">${escapeHtml(se.name && se.name.trim() ? se.name.trim() : (show.type === 'serie' ? 'S' + String(sIdx+1).padStart(2,'0') : 'FILM'))}</span>
+              <button class="season-name-btn" data-action="season-rename" title="Rinomina stagione">✏</button>
+            </div>
+            <div class="season-tools">
+              <button class="mark-all-on" data-action="mark-all-watched" title="Segna tutti gli episodi come visti">✓✓</button>
+              <button class="mark-all-off" data-action="mark-all-unwatched" title="Segna tutti gli episodi come non visti">○○</button>
+              <button data-action="ep-minus" title="Rimuovi un episodio">−</button>
+              <input type="number" class="ep-count" data-action="ep-count" value="${se.episodeCount}" min="1" max="999" title="Numero episodi">
+              <button data-action="ep-plus" title="Aggiungi un episodio">+</button>
+              ${show.seasons.length > 1 ? '<button data-action="season-remove" title="Rimuovi stagione">🗑</button>' : ''}
+            </div>
+          </div>
+          <div class="punch-grid">
+            ${se.watched.map((w, eIdx) => `<button class="square ${w?'watched':''}" data-ep="${eIdx}" title="Episodio ${eIdx+1}"></button>`).join('')}
+          </div>
+        </div>
+      `).join('');
+
+      body.innerHTML = (expanded ? seasonsHtml + (show.type === 'serie' ? '<button class="add-season" data-action="season-add">+ Aggiungi stagione</button>' : '') : '') + `
+        <div class="progress-line"><span>${watched}/${total} episodi</span><span>${pct}%</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      `;
+
+      card.appendChild(head);
+      card.appendChild(body);
+      grid.appendChild(card);
+
+      // event wiring
+      head.querySelector('[data-action="toggle-expand"]').onclick = () => {
+        if(toggledIds.has(show.id)) toggledIds.delete(show.id);
+        else toggledIds.add(show.id);
+        render();
+      };
+      head.querySelector('[data-action="delete"]').onclick = () => {
+        showConfirm(`Eliminare "${show.title}" dalla videoteca?`, () => {
+          shows = shows.filter(s => s.id !== show.id);
+          saveShows(); render();
+        });
+      };
+      head.querySelectorAll('[data-star]').forEach(starBtn => {
+        starBtn.onclick = () => {
+          const n = parseInt(starBtn.dataset.star, 10);
+          show.rating = show.rating === n ? 0 : n;
+          touchShow(show);
+          saveShows(); render();
+        };
+      });
+
+      body.querySelectorAll('.season-row').forEach(row => {
+        const sIdx = parseInt(row.dataset.season, 10);
+        const se = show.seasons[sIdx];
+
+        row.querySelectorAll('[data-ep]').forEach(sq => {
+          sq.onclick = () => {
+            const eIdx = parseInt(sq.dataset.ep, 10);
+            const wasSeasonComplete = se.watched.every(Boolean);
+            const wasSeriesComplete = show.type === 'serie' && show.seasons.every(s2 => s2.watched.every(Boolean));
+
+            se.watched[eIdx] = !se.watched[eIdx];
+            const nowWatched = se.watched[eIdx];
+            touchShow(show);
+            saveShows();
+
+            if(nowWatched){
+              if(show.type === 'film'){
+                celebrate('film', show.title);
+              } else {
+                const isSeasonComplete = se.watched.every(Boolean);
+                const isSeriesComplete = show.seasons.every(s2 => s2.watched.every(Boolean));
+                if(isSeriesComplete && !wasSeriesComplete){
+                  celebrate('series', show.title);
+                } else if(isSeasonComplete && !wasSeasonComplete){
+                  celebrate('season', show.title);
+                }
+              }
+            }
+            render();
+          };
+        });
+
+        function setEpisodeCount(newCount){
+          newCount = Math.max(1, Math.min(999, Math.round(newCount) || 1));
+          if(newCount === se.episodeCount) return;
+          if(newCount > se.episodeCount){
+            while(se.watched.length < newCount) se.watched.push(false);
+          } else {
+            se.watched = se.watched.slice(0, newCount);
+          }
+          se.episodeCount = newCount;
+          touchShow(show);
+          saveShows(); render();
+        }
+
+        const minusBtn = row.querySelector('[data-action="ep-minus"]');
+        if(minusBtn) minusBtn.onclick = () => {
+          if(se.episodeCount > 1) setEpisodeCount(se.episodeCount - 1);
+        };
+        const plusBtn = row.querySelector('[data-action="ep-plus"]');
+        if(plusBtn) plusBtn.onclick = () => setEpisodeCount(se.episodeCount + 1);
+
+        const countInput = row.querySelector('[data-action="ep-count"]');
+        if(countInput){
+          countInput.onchange = () => setEpisodeCount(parseInt(countInput.value, 10));
+          countInput.onkeydown = (e) => { if(e.key === 'Enter') countInput.blur(); };
+        }
+
+        const renameBtn = row.querySelector('[data-action="season-rename"]');
+        if(renameBtn) renameBtn.onclick = () => {
+          const current = se.name && se.name.trim() ? se.name.trim() : (show.type === 'serie' ? 'Stagione ' + (sIdx+1) : 'Film');
+          const name = prompt('Nome della stagione:', current);
+          if(name === null) return;
+          se.name = name.trim();
+          touchShow(show);
+          saveShows(); render();
+        };
+
+        const markAllWatchedBtn = row.querySelector('[data-action="mark-all-watched"]');
+        if(markAllWatchedBtn) markAllWatchedBtn.onclick = () => {
+          const wasSeasonComplete = se.watched.every(Boolean);
+          const wasSeriesComplete = show.type === 'serie' && show.seasons.every(s2 => s2.watched.every(Boolean));
+          se.watched = se.watched.map(() => true);
+          touchShow(show);
+          saveShows();
+          if(show.type === 'film'){
+            celebrate('film', show.title);
+          } else {
+            const isSeriesComplete = show.seasons.every(s2 => s2.watched.every(Boolean));
+            if(isSeriesComplete && !wasSeriesComplete){
+              celebrate('series', show.title);
+            } else if(!wasSeasonComplete){
+              celebrate('season', show.title);
+            }
+          }
+          render();
+        };
+
+        const markAllUnwatchedBtn = row.querySelector('[data-action="mark-all-unwatched"]');
+        if(markAllUnwatchedBtn) markAllUnwatchedBtn.onclick = () => {
+          se.watched = se.watched.map(() => false);
+          touchShow(show);
+          saveShows(); render();
+        };
+
+        const removeBtn = row.querySelector('[data-action="season-remove"]');
+        if(removeBtn) removeBtn.onclick = () => {
+          show.seasons.splice(sIdx, 1);
+          touchShow(show);
+          saveShows(); render();
+        };
+      });
+
+      const addSeasonBtn = body.querySelector('[data-action="season-add"]');
+      if(addSeasonBtn) addSeasonBtn.onclick = () => {
+        show.seasons.push({episodeCount: 1, watched: [false]});
+        touchShow(show);
+        saveShows(); render();
+      };
+    });
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function render(){
+    renderMediaToggle();
+    renderViewToggle();
+    renderTabs();
+    renderStats();
+    renderGrid();
+  }
+
+  // ---------- Modal / creation ----------
+  const overlay = document.getElementById('overlay');
+  document.getElementById('btnAdd').onclick = () => {
+    document.getElementById('newTitle').value = '';
+    document.getElementById('newSeasons').value = 1;
+    newType = 'serie';
+    document.querySelectorAll('.radio-opt').forEach(o => o.classList.toggle('sel', o.dataset.type === 'serie'));
+    document.getElementById('seasonsField').style.display = 'block';
+    overlay.style.display = 'flex';
+    document.getElementById('newTitle').focus();
+  };
+  document.getElementById('btnCancel').onclick = () => { overlay.style.display = 'none'; };
+  overlay.onclick = (e) => { if(e.target === overlay) overlay.style.display = 'none'; };
+
+  document.querySelectorAll('.radio-opt').forEach(opt => {
+    opt.onclick = () => {
+      newType = opt.dataset.type;
+      document.querySelectorAll('.radio-opt').forEach(o => o.classList.toggle('sel', o === opt));
+      document.getElementById('seasonsField').style.display = newType === 'serie' ? 'block' : 'none';
+    };
+  });
+
+  document.getElementById('btnCreate').onclick = () => {
+    const title = document.getElementById('newTitle').value.trim();
+    if(!title){ showNotice('Inserisci un titolo.'); return; }
+    const seasonsCount = newType === 'serie' ? Math.max(1, parseInt(document.getElementById('newSeasons').value,10) || 1) : 1;
+    const seasons = [];
+    for(let i=0;i<seasonsCount;i++){
+      seasons.push({episodeCount: 1, watched: [false]});
+    }
+    shows.unshift({
+      id: uid(),
+      title,
+      type: newType,
+      rating: 0,
+      lastModifiedAt: Date.now(),
+      seasons
+    });
+    saveShows();
+    overlay.style.display = 'none';
+    filter = 'all';
+    render();
+  };
+
+  // ---------- Export / Import ----------
+  document.getElementById('btnExport').onclick = () => {
+    const blob = new Blob([JSON.stringify(shows, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'videoteca-backup.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  document.getElementById('btnImport').onclick = () => document.getElementById('fileImport').click();
+  document.getElementById('fileImport').onchange = (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const data = JSON.parse(reader.result);
+        if(!Array.isArray(data)) throw new Error('formato non valido');
+        showConfirm('Importare questi dati sostituirà la collezione attuale. Continuare?', () => {
+          shows = data;
+          ensureLastModified();
+          saveShows(); render();
+        });
+      }catch(err){
+        showNotice('Il file selezionato non è un backup valido.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  // ---------- Media toggle ----------
+  document.querySelectorAll('.media-btn').forEach(btn => {
+    btn.onclick = () => { mediaFilter = btn.dataset.media; filter = 'all'; render(); };
+  });
+
+  // ---------- View toggle ----------
+  document.querySelectorAll('.view-btn').forEach(btn => {
+    btn.onclick = () => {
+      viewMode = btn.dataset.view;
+      saveViewMode();
+      render();
+    };
+  });
+
+  // ---------- Sessione / Logout ----------
+  const authUser = localStorage.getItem('videoteca-auth') || sessionStorage.getItem('videoteca-auth');
+  const sessionUserEl = document.getElementById('sessionUser');
+  if (sessionUserEl) sessionUserEl.innerHTML = 'Connesso come <strong>' + escapeHtml(authUser || '') + '</strong>';
+  const btnLogout = document.getElementById('btnLogout');
+  if (btnLogout) btnLogout.onclick = () => {
+    localStorage.removeItem('videoteca-auth');
+    sessionStorage.removeItem('videoteca-auth');
+    window.location.replace('index.html');
+  };
+
+  // ---------- Init ----------
+  loadShows();
+  loadViewMode();
+  render();
+})();
+</script>
+</body>
+</html>
