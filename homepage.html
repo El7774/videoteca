@@ -7,7 +7,7 @@
 <script>
   // Guardia di accesso: senza sessione attiva si torna al login
   if (!localStorage.getItem('videoteca-auth') && !sessionStorage.getItem('videoteca-auth')) {
-    window.location.replace('index.html');
+    window.location.replace('homepage.html');
   }
 </script>
 <link rel="stylesheet" href="styles.css">
@@ -615,7 +615,7 @@
   if (btnLogout) btnLogout.onclick = () => {
     localStorage.removeItem('videoteca-auth');
     sessionStorage.removeItem('videoteca-auth');
-    window.location.replace('index.html');
+    window.location.replace('homepage.html');
   };
 
   // ---------- Init ----------
