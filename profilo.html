@@ -31,7 +31,17 @@
 
     <div class="profile-section">
       <h2>Account</h2>
-      <p class="profile-username">Username attuale: <strong id="profileUsername"></strong></p>
+      <div class="profile-account-row">
+        <label class="avatar-upload avatar-upload-lg" id="avatarUpload" title="Cambia foto profilo">
+          <img class="avatar-img" id="avatarImg" alt="">
+          <span class="avatar-initial" id="avatarInitial"></span>
+          <input type="file" accept="image/*" id="avatarInput" hidden>
+        </label>
+        <div>
+          <p class="profile-username">Username attuale: <strong id="profileUsername"></strong></p>
+          <p class="hint" style="margin-top:6px;">Clicca sulla foto per cambiarla.</p>
+        </div>
+      </div>
     </div>
 
     <div class="profile-section">
@@ -129,12 +139,70 @@
   document.getElementById('profileUsername').textContent = currentUsername || '';
   document.getElementById('deleteUsernameLabel').textContent = currentUsername || '';
 
+  // ---------- Avatar ----------
+  function avatarKey(username){ return 'videoteca-avatar-' + (username || ''); }
+  const avatarImg = document.getElementById('avatarImg');
+  const avatarInitial = document.getElementById('avatarInitial');
+  const avatarInput = document.getElementById('avatarInput');
+
+  function loadAvatar(){
+    let dataUrl = null;
+    try{ dataUrl = localStorage.getItem(avatarKey(currentUsername)); }catch(e){ /* non bloccante */ }
+    if(dataUrl){
+      avatarImg.src = dataUrl;
+      avatarImg.style.display = 'block';
+      avatarInitial.style.display = 'none';
+    } else {
+      avatarImg.style.display = 'none';
+      avatarInitial.style.display = 'flex';
+      avatarInitial.textContent = (currentUsername || '?').trim().charAt(0).toUpperCase();
+    }
+  }
+  loadAvatar();
+
+  if(avatarInput) avatarInput.onchange = () => {
+    const file = avatarInput.files && avatarInput.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const size = 160;
+        const canvas = document.createElement('canvas');
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const scale = Math.max(size / img.width, size / img.height);
+        const w = img.width * scale, h = img.height * scale;
+        ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        try{
+          localStorage.setItem(avatarKey(currentUsername), dataUrl);
+          loadAvatar();
+        }catch(err){ /* spazio insufficiente, ignora */ }
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+    avatarInput.value = '';
+  };
+
   function setSessionUsername(username) {
+    const oldKey = avatarKey(currentUsername);
+    const newKey = avatarKey(username);
+    try{
+      const existing = localStorage.getItem(oldKey);
+      if(existing && oldKey !== newKey){
+        localStorage.setItem(newKey, existing);
+        localStorage.removeItem(oldKey);
+      }
+    }catch(e){ /* non bloccante */ }
+
     currentUsername = username;
     if (usesLocal) localStorage.setItem(AUTH_KEY, username);
     else sessionStorage.setItem(AUTH_KEY, username);
     document.getElementById('profileUsername').textContent = username;
     document.getElementById('deleteUsernameLabel').textContent = username;
+    loadAvatar();
   }
 
   // ---------- Logout ----------

@@ -16,12 +16,18 @@
 <body>
 <div class="wrap">
   <div class="session-bar">
-    <span id="sessionUser"></span>
+    <div class="session-identity">
+      <label class="avatar-upload" id="avatarUpload" title="Cambia foto profilo">
+        <img class="avatar-img" id="avatarImg" alt="">
+        <span class="avatar-initial" id="avatarInitial"></span>
+        <input type="file" accept="image/*" id="avatarInput" hidden>
+      </label>
+      <a href="profilo.html" class="profile-link"><strong id="sessionUserName"></strong></a>
+    </div>
     <button class="btn ghost" id="btnLogout">Esci</button>
   </div>
   <header>
     <div>
-      <p class="eyebrow">Collezione personale · dati salvati solo su questo dispositivo</p>
       <h1>Videoteca</h1>
     </div>
     <div class="stats-groups">
@@ -315,9 +321,10 @@
     const hue = hashHue(show.title);
     const {total, watched, pct} = computeProgress(show);
     const statusKey = computeStatus(show);
-    const expanded = isCardExpanded(show);
+    const isFilm = show.type === 'film';
+    const expanded = isFilm ? false : isCardExpanded(show);
     const card = document.createElement('div');
-    card.className = 'card view-' + viewMode + (expanded ? ' expanded' : ' collapsed');
+    card.className = 'card view-' + viewMode + (isFilm ? ' film-card' : (expanded ? ' expanded' : ' collapsed'));
 
     const head = document.createElement('div');
     head.className = 'card-head';
@@ -325,8 +332,8 @@
 
     head.innerHTML = `
       <div class="card-top-row">
-        <div class="title-row" data-action="toggle-expand" title="${expanded ? 'Comprimi' : 'Espandi'} stagioni ed episodi">
-          <span class="chevron">▾</span>
+        <div class="title-row${isFilm ? ' no-expand' : ''}"${isFilm ? '' : ' data-action="toggle-expand" title="' + (expanded ? 'Comprimi' : 'Espandi') + ' stagioni ed episodi"'}>
+          ${isFilm ? '' : '<span class="chevron">▾</span>'}
           <div>
             <span class="type-badge ${show.type}">${show.type === 'serie' ? 'Serie TV' : 'Film'}</span>
             <h3>${escapeHtml(show.title)}</h3>
@@ -337,7 +344,7 @@
           <button class="icon-btn" title="Elimina" data-action="delete">✕</button>
         </div>
       </div>
-      <span class="tile-progress">${watched}/${total} · ${pct}%</span>
+      ${isFilm ? '' : `<span class="tile-progress">${watched}/${total} · ${pct}%</span>`}
       <div class="meta-row">
         <span class="status-badge ${statusKey}">${STATUS_LABELS[statusKey]}</span>
         <div class="stars" data-action="stars">
@@ -349,38 +356,49 @@
     const body = document.createElement('div');
     body.className = 'card-body';
 
-    const seasonsHtml = show.seasons.map((se, sIdx) => `
-      <div class="season-row" data-season="${sIdx}">
-        <div class="season-label-row">
-          <div class="season-tag-wrap">
-            <span class="season-tag">${escapeHtml(se.name && se.name.trim() ? se.name.trim() : (show.type === 'serie' ? 'S' + String(sIdx+1).padStart(2,'0') : 'FILM'))}</span>
-            <button class="season-name-btn" data-action="season-rename" title="Rinomina stagione">✏</button>
+    if(isFilm){
+      const isWatched = !!(show.seasons[0] && show.seasons[0].watched[0]);
+      body.innerHTML = `
+        <label class="film-watch-row">
+          <input type="checkbox" class="film-watch-checkbox" ${isWatched ? 'checked' : ''}>
+          <span>${isWatched ? 'Visto' : 'Segna come visto'}</span>
+        </label>
+      `;
+    } else {
+      const seasonsHtml = show.seasons.map((se, sIdx) => `
+        <div class="season-row" data-season="${sIdx}">
+          <div class="season-label-row">
+            <div class="season-tag-wrap">
+              <span class="season-tag">${escapeHtml(se.name && se.name.trim() ? se.name.trim() : 'S' + String(sIdx+1).padStart(2,'0'))}</span>
+              <button class="season-name-btn" data-action="season-rename" title="Rinomina stagione">✏</button>
+            </div>
+            <div class="season-tools">
+              <button class="mark-all-on" data-action="mark-all-watched" title="Segna tutti gli episodi come visti">✓✓</button>
+              <button class="mark-all-off" data-action="mark-all-unwatched" title="Segna tutti gli episodi come non visti">○○</button>
+              <button data-action="ep-minus" title="Rimuovi un episodio">−</button>
+              <input type="number" class="ep-count" data-action="ep-count" value="${se.episodeCount}" min="1" max="999" title="Numero episodi">
+              <button data-action="ep-plus" title="Aggiungi un episodio">+</button>
+              ${show.seasons.length > 1 ? '<button data-action="season-remove" title="Rimuovi stagione">🗑</button>' : ''}
+            </div>
           </div>
-          <div class="season-tools">
-            <button class="mark-all-on" data-action="mark-all-watched" title="Segna tutti gli episodi come visti">✓✓</button>
-            <button class="mark-all-off" data-action="mark-all-unwatched" title="Segna tutti gli episodi come non visti">○○</button>
-            <button data-action="ep-minus" title="Rimuovi un episodio">−</button>
-            <input type="number" class="ep-count" data-action="ep-count" value="${se.episodeCount}" min="1" max="999" title="Numero episodi">
-            <button data-action="ep-plus" title="Aggiungi un episodio">+</button>
-            ${show.seasons.length > 1 ? '<button data-action="season-remove" title="Rimuovi stagione">🗑</button>' : ''}
+          <div class="punch-grid">
+            ${se.watched.map((w, eIdx) => `<button class="square ${w?'watched':''}" data-ep="${eIdx}" title="Episodio ${eIdx+1}"></button>`).join('')}
           </div>
         </div>
-        <div class="punch-grid">
-          ${se.watched.map((w, eIdx) => `<button class="square ${w?'watched':''}" data-ep="${eIdx}" title="Episodio ${eIdx+1}"></button>`).join('')}
-        </div>
-      </div>
-    `).join('');
+      `).join('');
 
-    body.innerHTML = (expanded ? seasonsHtml + (show.type === 'serie' ? '<button class="add-season" data-action="season-add">+ Aggiungi stagione</button>' : '') : '') + `
-      <div class="progress-line"><span>${watched}/${total} episodi</span><span>${pct}%</span></div>
-      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-    `;
+      body.innerHTML = (expanded ? seasonsHtml + '<button class="add-season" data-action="season-add">+ Aggiungi stagione</button>' : '') + `
+        <div class="progress-line"><span>${watched}/${total} episodi</span><span>${pct}%</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      `;
+    }
 
     card.appendChild(head);
     card.appendChild(body);
 
     // event wiring
-    head.querySelector('[data-action="toggle-expand"]').onclick = () => {
+    const expandTrigger = head.querySelector('[data-action="toggle-expand"]');
+    if(expandTrigger) expandTrigger.onclick = () => {
       if(toggledIds.has(show.id)) toggledIds.delete(show.id);
       else toggledIds.add(show.id);
       render();
@@ -404,6 +422,21 @@
         saveShows(); render();
       };
     });
+
+    if(isFilm){
+      const checkbox = body.querySelector('.film-watch-checkbox');
+      checkbox.onchange = () => {
+        const se = show.seasons[0];
+        const wasWatched = se.watched[0];
+        se.watched[0] = checkbox.checked;
+        touchShow(show);
+        saveShows();
+        if(checkbox.checked && !wasWatched){
+          celebrate('film', show.title);
+        }
+        render();
+      };
+    }
 
     body.querySelectorAll('.season-row').forEach(row => {
       const sIdx = parseInt(row.dataset.season, 10);
@@ -670,13 +703,62 @@
 
   // ---------- Sessione / Logout ----------
   const authUser = localStorage.getItem('videoteca-auth') || sessionStorage.getItem('videoteca-auth');
-  const sessionUserEl = document.getElementById('sessionUser');
-  if (sessionUserEl) sessionUserEl.innerHTML = 'Connesso come <a href="profilo.html" class="profile-link"><strong>' + escapeHtml(authUser || '') + '</strong></a>';
+  const sessionUserName = document.getElementById('sessionUserName');
+  if (sessionUserName) sessionUserName.textContent = authUser || '';
   const btnLogout = document.getElementById('btnLogout');
   if (btnLogout) btnLogout.onclick = () => {
     localStorage.removeItem('videoteca-auth');
     sessionStorage.removeItem('videoteca-auth');
     window.location.replace('index.html');
+  };
+
+  // ---------- Avatar ----------
+  const AVATAR_KEY = 'videoteca-avatar-' + (authUser || '');
+  const avatarImg = document.getElementById('avatarImg');
+  const avatarInitial = document.getElementById('avatarInitial');
+  const avatarInput = document.getElementById('avatarInput');
+
+  function loadAvatar(){
+    let dataUrl = null;
+    try{ dataUrl = localStorage.getItem(AVATAR_KEY); }catch(e){ /* non bloccante */ }
+    if(dataUrl){
+      avatarImg.src = dataUrl;
+      avatarImg.style.display = 'block';
+      avatarInitial.style.display = 'none';
+    } else {
+      avatarImg.style.display = 'none';
+      avatarInitial.style.display = 'flex';
+      avatarInitial.textContent = (authUser || '?').trim().charAt(0).toUpperCase();
+    }
+  }
+  loadAvatar();
+
+  if(avatarInput) avatarInput.onchange = () => {
+    const file = avatarInput.files && avatarInput.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const size = 160;
+        const canvas = document.createElement('canvas');
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const scale = Math.max(size / img.width, size / img.height);
+        const w = img.width * scale, h = img.height * scale;
+        ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        try{
+          localStorage.setItem(AVATAR_KEY, dataUrl);
+          loadAvatar();
+        }catch(err){
+          showNotice('Non sono riuscito a salvare la foto: spazio insufficiente nel browser.');
+        }
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+    avatarInput.value = '';
   };
 
   // ---------- Init ----------
