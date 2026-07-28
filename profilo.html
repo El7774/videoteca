@@ -9,6 +9,11 @@
   if (!localStorage.getItem('videoteca-auth') && !sessionStorage.getItem('videoteca-auth')) {
     window.location.replace('index.html');
   }
+  // Applica il tema scelto dall'utente
+  (function(){
+    var theme = localStorage.getItem('videoteca-theme');
+    if(theme) document.documentElement.setAttribute('data-theme', theme);
+  })();
 </script>
 <link rel="stylesheet" href="styles.css">
 
@@ -82,12 +87,28 @@
       </form>
     </div>
 
+    <div class="profile-section">
+      <h2>Aspetto</h2>
+      <p class="hint">Scegli la combinazione di colori dell'app. Vale per login, videoteca e profilo.</p>
+      <button class="btn primary" id="btnChangeTheme">Cambia tema</button>
+    </div>
+
     <div class="profile-section danger-zone">
       <h2>Zona pericolosa</h2>
       <p class="hint">Eliminando l'account perderai l'accesso con queste credenziali. I titoli salvati nella videoteca restano su questo dispositivo, perché non sono legati a un singolo account.</p>
       <button class="btn danger" id="btnDeleteAccount">Elimina account</button>
     </div>
 
+  </div>
+</div>
+
+<div class="overlay" id="themeOverlay" style="display:none;">
+  <div class="modal theme-modal">
+    <h2>Scegli un tema</h2>
+    <div class="theme-grid" id="themeGrid"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="themeClose">Chiudi</button>
+    </div>
   </div>
 </div>
 
@@ -283,6 +304,61 @@
     document.getElementById('newPasswordConfirm').value = '';
     showMsg(passwordSuccess, 'Password aggiornata.');
   });
+
+  // ---------- Cambia tema ----------
+  const THEME_KEY = 'videoteca-theme';
+  const THEMES = [
+    { key: 'default', name: 'Predefinito', colors: ['#D9541F', '#1F7A8C'] },
+    { key: 'neo-noir', name: 'Neo-noir', colors: ['#E8A33D', '#3E6E8E'] },
+    { key: 'cyberpunk', name: 'Cyberpunk', colors: ['#FF2E88', '#00E5FF'] },
+    { key: 'nordic', name: 'Nordic thriller', colors: ['#4FA9D8', '#A62639'] },
+    { key: 'retro-vhs', name: 'Retro VHS', colors: ['#7B2FF7', '#0FD68B'] },
+    { key: 'western', name: 'Western', colors: ['#C1440E', '#D8C39A'] }
+  ];
+
+  function currentTheme(){
+    return localStorage.getItem(THEME_KEY) || 'default';
+  }
+
+  function applyTheme(key){
+    if(key === 'default'){
+      document.documentElement.removeAttribute('data-theme');
+      localStorage.removeItem(THEME_KEY);
+    } else {
+      document.documentElement.setAttribute('data-theme', key);
+      localStorage.setItem(THEME_KEY, key);
+    }
+  }
+
+  function renderThemeGrid(){
+    const grid = document.getElementById('themeGrid');
+    const active = currentTheme();
+    grid.innerHTML = '';
+    THEMES.forEach(t => {
+      const btn = document.createElement('button');
+      btn.className = 'theme-option' + (t.key === active ? ' active' : '');
+      btn.innerHTML = `
+        <span class="theme-swatch">
+          <span style="background:${t.colors[0]}"></span>
+          <span style="background:${t.colors[1]}"></span>
+        </span>
+        <span class="theme-name">${t.name}</span>
+      `;
+      btn.onclick = () => {
+        applyTheme(t.key);
+        renderThemeGrid();
+      };
+      grid.appendChild(btn);
+    });
+  }
+
+  const themeOverlay = document.getElementById('themeOverlay');
+  document.getElementById('btnChangeTheme').onclick = () => {
+    renderThemeGrid();
+    themeOverlay.style.display = 'flex';
+  };
+  document.getElementById('themeClose').onclick = () => { themeOverlay.style.display = 'none'; };
+  themeOverlay.onclick = (e) => { if (e.target === themeOverlay) themeOverlay.style.display = 'none'; };
 
   // ---------- Elimina account ----------
   const deleteOverlay = document.getElementById('deleteOverlay');

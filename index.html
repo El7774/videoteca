@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Login</title>
+<script>
+  (function(){
+    var theme = localStorage.getItem('videoteca-theme');
+    if(theme) document.documentElement.setAttribute('data-theme', theme);
+  })();
+</script>
+<link rel="stylesheet" href="styles.css">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', 'Segoe UI', Arial, sans-serif; }
 
@@ -12,7 +19,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(115deg, #d9541f 0%, #d9541f 48%, #0e3b45 52%, #0e3b45 100%);
+    font-family: 'Poppins', 'Segoe UI', Arial, sans-serif;
+    background: linear-gradient(115deg, rgba(var(--wash-1-rgb),1) 0%, rgba(var(--wash-1-rgb),1) 48%, rgba(var(--wash-2-rgb),1) 52%, rgba(var(--wash-2-rgb),1) 100%);
     position: relative;
     overflow: hidden;
   }
@@ -134,7 +142,7 @@
   }
 
   .form-error {
-    background: rgba(178, 58, 31, 0.25);
+    background: rgba(var(--crimson-rgb), 0.25);
     border: 1px solid rgba(255, 255, 255, 0.4);
     color: #fff;
     font-size: 13px;

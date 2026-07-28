@@ -9,6 +9,11 @@
   if (!localStorage.getItem('videoteca-auth') && !sessionStorage.getItem('videoteca-auth')) {
     window.location.replace('index.html');
   }
+  // Applica il tema scelto dall'utente
+  (function(){
+    var theme = localStorage.getItem('videoteca-theme');
+    if(theme) document.documentElement.setAttribute('data-theme', theme);
+  })();
 </script>
 <link rel="stylesheet" href="styles.css">
 
