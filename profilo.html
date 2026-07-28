@@ -50,41 +50,15 @@
     </div>
 
     <div class="profile-section">
-      <h2>Cambia username</h2>
-      <div class="form-error" id="usernameError"></div>
-      <div class="form-success" id="usernameSuccess"></div>
-      <form id="usernameForm">
-        <div class="field">
-          <label>Nuovo username</label>
-          <input type="text" id="newUsername" placeholder="Nuovo username" required>
-        </div>
-        <div class="field">
-          <label>Password attuale</label>
-          <input type="password" id="usernameConfirmPassword" placeholder="Password attuale" required>
-        </div>
-        <button type="submit" class="btn primary">Aggiorna username</button>
-      </form>
+      <h2>Username</h2>
+      <p class="hint">Cambia il nome con cui accedi alla videoteca.</p>
+      <button class="btn primary" id="btnChangeUsername">Cambia username</button>
     </div>
 
     <div class="profile-section">
-      <h2>Cambia password</h2>
-      <div class="form-error" id="passwordError"></div>
-      <div class="form-success" id="passwordSuccess"></div>
-      <form id="passwordForm">
-        <div class="field">
-          <label>Password attuale</label>
-          <input type="password" id="currentPassword" placeholder="Password attuale" required>
-        </div>
-        <div class="field">
-          <label>Nuova password</label>
-          <input type="password" id="newPassword" placeholder="Nuova password" required>
-        </div>
-        <div class="field">
-          <label>Conferma nuova password</label>
-          <input type="password" id="newPasswordConfirm" placeholder="Conferma nuova password" required>
-        </div>
-        <button type="submit" class="btn primary">Aggiorna password</button>
-      </form>
+      <h2>Password</h2>
+      <p class="hint">Aggiorna la password del tuo account.</p>
+      <button class="btn primary" id="btnChangePassword">Cambia password</button>
     </div>
 
     <div class="profile-section">
@@ -99,6 +73,54 @@
       <button class="btn danger" id="btnDeleteAccount">Elimina account</button>
     </div>
 
+  </div>
+</div>
+
+<div class="overlay" id="usernameOverlay" style="display:none;">
+  <div class="modal">
+    <h2>Cambia username</h2>
+    <div class="form-error" id="usernameError"></div>
+    <div class="form-success" id="usernameSuccess"></div>
+    <form id="usernameForm">
+      <div class="field">
+        <label>Nuovo username</label>
+        <input type="text" id="newUsername" placeholder="Nuovo username" required>
+      </div>
+      <div class="field">
+        <label>Password attuale</label>
+        <input type="password" id="usernameConfirmPassword" placeholder="Password attuale" required>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" id="usernameCancel">Annulla</button>
+        <button type="submit" class="btn primary">Aggiorna username</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="overlay" id="passwordOverlay" style="display:none;">
+  <div class="modal">
+    <h2>Cambia password</h2>
+    <div class="form-error" id="passwordError"></div>
+    <div class="form-success" id="passwordSuccess"></div>
+    <form id="passwordForm">
+      <div class="field">
+        <label>Password attuale</label>
+        <input type="password" id="currentPassword" placeholder="Password attuale" required>
+      </div>
+      <div class="field">
+        <label>Nuova password</label>
+        <input type="password" id="newPassword" placeholder="Nuova password" required>
+      </div>
+      <div class="field">
+        <label>Conferma nuova password</label>
+        <input type="password" id="newPasswordConfirm" placeholder="Conferma nuova password" required>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" id="passwordCancel">Annulla</button>
+        <button type="submit" class="btn primary">Aggiorna password</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -234,8 +256,20 @@
   };
 
   // ---------- Cambia username ----------
+  const usernameOverlay = document.getElementById('usernameOverlay');
   const usernameError = document.getElementById('usernameError');
   const usernameSuccess = document.getElementById('usernameSuccess');
+
+  document.getElementById('btnChangeUsername').onclick = () => {
+    document.getElementById('newUsername').value = '';
+    document.getElementById('usernameConfirmPassword').value = '';
+    hideMsg(usernameError); hideMsg(usernameSuccess);
+    usernameOverlay.style.display = 'flex';
+    document.getElementById('newUsername').focus();
+  };
+  document.getElementById('usernameCancel').onclick = () => { usernameOverlay.style.display = 'none'; };
+  usernameOverlay.onclick = (e) => { if (e.target === usernameOverlay) usernameOverlay.style.display = 'none'; };
+
   document.getElementById('usernameForm').addEventListener('submit', function (e) {
     e.preventDefault();
     hideMsg(usernameError); hideMsg(usernameSuccess);
@@ -270,8 +304,21 @@
   });
 
   // ---------- Cambia password ----------
+  const passwordOverlay = document.getElementById('passwordOverlay');
   const passwordError = document.getElementById('passwordError');
   const passwordSuccess = document.getElementById('passwordSuccess');
+
+  document.getElementById('btnChangePassword').onclick = () => {
+    document.getElementById('currentPassword').value = '';
+    document.getElementById('newPassword').value = '';
+    document.getElementById('newPasswordConfirm').value = '';
+    hideMsg(passwordError); hideMsg(passwordSuccess);
+    passwordOverlay.style.display = 'flex';
+    document.getElementById('currentPassword').focus();
+  };
+  document.getElementById('passwordCancel').onclick = () => { passwordOverlay.style.display = 'none'; };
+  passwordOverlay.onclick = (e) => { if (e.target === passwordOverlay) passwordOverlay.style.display = 'none'; };
+
   document.getElementById('passwordForm').addEventListener('submit', function (e) {
     e.preventDefault();
     hideMsg(passwordError); hideMsg(passwordSuccess);
