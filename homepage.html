@@ -73,6 +73,15 @@
     </div>
   </div>
 
+  <div class="online-search-bar">
+    <div class="online-search-field">
+      <span class="online-search-icon">🔍</span>
+      <input type="text" id="onlineSearchInput" placeholder="Cerca una serie TV o un film online...">
+    </div>
+    <button class="btn primary" id="btnOnlineSearch">Cerca online</button>
+    <span class="badge-soon">Presto disponibile</span>
+  </div>
+
   <div class="favorites-section" id="favoritesSection">
     <div class="favorites-header" id="favoritesHeader">
       <h2>❤ Preferiti</h2>
@@ -669,6 +678,15 @@
     filter = 'all';
     render();
   };
+
+  // ---------- Ricerca online (placeholder) ----------
+  function notifyOnlineSearchComingSoon(){
+    showNotice('La ricerca online sarà disponibile prossimamente.');
+  }
+  document.getElementById('btnOnlineSearch').onclick = notifyOnlineSearchComingSoon;
+  document.getElementById('onlineSearchInput').addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){ e.preventDefault(); notifyOnlineSearchComingSoon(); }
+  });
 
   // ---------- Media toggle ----------
   document.querySelectorAll('.media-btn').forEach(btn => {
