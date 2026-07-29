@@ -69,9 +69,6 @@
       <div class="tabs" id="tabs"></div>
     </div>
     <div class="actions">
-      <button class="btn ghost" id="btnExport">Esporta dati</button>
-      <button class="btn ghost" id="btnImport">Importa dati</button>
-      <input type="file" id="fileImport" accept="application/json" style="display:none">
       <button class="btn primary" id="btnAdd">+ Aggiungi titolo</button>
     </div>
   </div>
@@ -268,14 +265,34 @@
     const tabsEl = document.getElementById('tabs');
     tabsEl.innerHTML = '';
     const subset = mediaFilter === 'all' ? shows : shows.filter(s => s.type === mediaFilter);
-    TABS.forEach(t => {
-      const count = t.key === 'all' ? subset.length : subset.filter(s => computeStatus(s) === t.key).length;
-      const btn = document.createElement('button');
-      btn.className = 'tab' + (filter === t.key ? ' active' : '');
-      btn.textContent = t.label + ' (' + count + ')';
-      btn.onclick = () => { filter = t.key; render(); };
-      tabsEl.appendChild(btn);
+
+    const allTab = TABS.find(t => t.key === 'all');
+    const allBtn = document.createElement('button');
+    allBtn.className = 'tab' + (filter === 'all' ? ' active' : '');
+    allBtn.textContent = allTab.label + ' (' + subset.length + ')';
+    allBtn.onclick = () => { filter = 'all'; render(); };
+    tabsEl.appendChild(allBtn);
+
+    const select = document.createElement('select');
+    select.className = 'status-filter-select';
+    select.id = 'statusFilterSelect';
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Altri filtri…';
+    select.appendChild(placeholder);
+
+    TABS.filter(t => t.key !== 'all').forEach(t => {
+      const count = subset.filter(s => computeStatus(s) === t.key).length;
+      const opt = document.createElement('option');
+      opt.value = t.key;
+      opt.textContent = t.label + ' (' + count + ')';
+      select.appendChild(opt);
     });
+
+    select.value = (filter === 'all') ? '' : filter;
+    select.onchange = () => { filter = select.value || 'all'; render(); };
+    tabsEl.appendChild(select);
   }
 
   function renderMediaToggle(){
@@ -651,38 +668,6 @@
     overlay.style.display = 'none';
     filter = 'all';
     render();
-  };
-
-  // ---------- Export / Import ----------
-  document.getElementById('btnExport').onclick = () => {
-    const blob = new Blob([JSON.stringify(shows, null, 2)], {type:'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'videoteca-backup.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-  document.getElementById('btnImport').onclick = () => document.getElementById('fileImport').click();
-  document.getElementById('fileImport').onchange = (e) => {
-    const file = e.target.files[0];
-    if(!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try{
-        const data = JSON.parse(reader.result);
-        if(!Array.isArray(data)) throw new Error('formato non valido');
-        showConfirm('Importare questi dati sostituirà la collezione attuale. Continuare?', () => {
-          shows = data;
-          ensureLastModified();
-          saveShows(); render();
-        });
-      }catch(err){
-        showNotice('Il file selezionato non è un backup valido.');
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
   };
 
   // ---------- Media toggle ----------

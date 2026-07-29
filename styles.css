@@ -113,7 +113,7 @@
     *{ animation: none !important; transition: none !important; }
   }
 
-  .wrap{ max-width: 1180px; margin: 0 auto; padding: 32px 24px 80px; }
+  .wrap{ width: 100%; margin: 0; padding: 32px 40px 80px; }
 
   /* ---------- Favorites section ---------- */
   .favorites-section{ margin-bottom: 48px; padding: 20px 20px 24px; border: 1px solid rgba(var(--crimson-rgb),0.35); border-radius: calc(var(--radius) + 4px); background: rgba(var(--crimson-rgb),0.05); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
@@ -132,6 +132,8 @@
   .session-bar a.profile-link{ color: var(--orange); text-decoration: none; cursor: pointer; font-size: 13px; }
   .session-bar a.profile-link:hover strong{ text-decoration: underline; }
   .session-bar .btn{ padding: 6px 14px; font-size: 12px; }
+  .back-arrow{ display:inline-flex; align-items:center; justify-content:center; width: 36px; height: 36px; border-radius: 8px; background: var(--panel-raised); border: 1px solid var(--line); color: var(--text); text-decoration: none; font-size: 18px; line-height:1; transition: border-color 0.15s ease, color 0.15s ease; }
+  .back-arrow:hover{ border-color: var(--orange-dim); color: var(--orange); }
 
   .avatar-upload{ position:relative; width: 36px; height: 36px; border-radius: 8px; overflow: hidden; background: var(--panel-raised); border: 1px solid var(--line); display:flex; align-items:center; justify-content:center; cursor: pointer; flex-shrink: 0; transition: border-color 0.15s ease; }
   .avatar-upload:hover{ border-color: var(--orange-dim); }
@@ -151,10 +153,13 @@
 
   /* ---------- Toolbar ---------- */
   .toolbar{ display:flex; justify-content: space-between; align-items:center; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
-  .tabs{ display:flex; gap: 6px; flex-wrap: wrap; }
+  .tabs{ display:flex; gap: 6px; flex-wrap: wrap; align-items:center; }
   .tab{ font-family:'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.5px; background: transparent; border: 1px solid var(--line); color: var(--muted); padding: 8px 14px; border-radius: 999px; cursor:pointer; }
   .tab:hover{ border-color: var(--orange-dim); color: var(--text); }
   .tab.active{ background: var(--orange); border-color: var(--orange); color: #FCEFE6; font-weight: 700; }
+  .status-filter-select{ font-family:'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.5px; background: var(--panel-raised); border: 1px solid var(--line); color: var(--muted); padding: 8px 14px; border-radius: 999px; cursor:pointer; }
+  .status-filter-select:hover{ border-color: var(--orange-dim); color: var(--text); }
+  .status-filter-select:focus{ outline: none; border-color: var(--orange); color: var(--text); }
   .actions{ display:flex; gap: 10px; }
   button.btn{ font-family:'Inter',sans-serif; font-weight:600; font-size: 14px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel-raised); color: var(--text); padding: 10px 16px; cursor: pointer; }
   button.btn:hover{ border-color: var(--orange-dim); }
@@ -243,7 +248,7 @@
   .hint{ font-size: 12px; color: var(--muted); margin-top: -8px; margin-bottom: 16px; }
 
   /* ---------- Profilo page ---------- */
-  .profile-grid{ display:grid; gap: 20px; max-width: 620px; margin: 0 auto; }
+  .profile-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
   .profile-section{ background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px 26px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
   .profile-section h2{ font-family:'Bebas Neue',sans-serif; letter-spacing: 0.5px; font-size: 21px; margin: 0 0 16px; color: var(--orange); }
   .profile-username{ font-family:'Inter',sans-serif; font-size: 14px; color: var(--muted); margin: 0; }
@@ -251,7 +256,7 @@
   .profile-account-row{ display:flex; align-items:center; gap: 16px; }
   .profile-section form{ margin-top: 4px; }
   .profile-section .btn{ margin-top: 4px; }
-  .danger-zone{ border-color: rgba(var(--crimson-rgb),0.4); background: rgba(var(--crimson-rgb),0.06); }
+  .danger-zone{ grid-column: 1 / -1; border-color: rgba(var(--crimson-rgb),0.4); background: rgba(var(--crimson-rgb),0.06); }
   .danger-zone h2{ color: var(--crimson); }
   button.btn.danger{ background: var(--crimson); border-color: var(--crimson); color: #FCEFE6; }
   button.btn.danger:hover{ filter: brightness(1.1); }

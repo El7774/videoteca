@@ -21,7 +21,7 @@
 <body>
 <div class="wrap">
   <div class="session-bar">
-    <a href="homepage.html" class="btn ghost">← Torna alla videoteca</a>
+    <a href="homepage.html" class="back-arrow" title="Torna alla videoteca" aria-label="Torna alla videoteca">←</a>
     <button class="btn ghost" id="btnLogout">Esci</button>
   </div>
 
@@ -65,6 +65,16 @@
       <h2>Aspetto</h2>
       <p class="hint">Scegli la combinazione di colori dell'app. Vale per login, videoteca e profilo.</p>
       <button class="btn primary" id="btnChangeTheme">Cambia tema</button>
+    </div>
+
+    <div class="profile-section">
+      <h2>Dati</h2>
+      <p class="hint">Esporta un backup della tua videoteca o importane uno precedente.</p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn ghost" id="btnExport">Esporta dati</button>
+        <button class="btn ghost" id="btnImport">Importa dati</button>
+        <input type="file" id="fileImport" accept="application/json" style="display:none">
+      </div>
     </div>
 
     <div class="profile-section danger-zone">
@@ -134,6 +144,17 @@
   </div>
 </div>
 
+<div class="overlay" id="importConfirmOverlay" style="display:none;">
+  <div class="modal">
+    <h2>Conferma importazione</h2>
+    <p>Importare questi dati sostituirà la collezione attuale. Continuare?</p>
+    <div class="modal-actions">
+      <button class="btn ghost" id="importConfirmNo">Annulla</button>
+      <button class="btn primary" id="importConfirmYes">Conferma</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="deleteOverlay" style="display:none;">
   <div class="modal">
     <h2>Elimina account</h2>
@@ -174,6 +195,58 @@
   function hideMsg(el) {
     el.classList.remove('show');
   }
+  function showNotice(message){
+    const t = document.createElement('div');
+    t.className = 'notice-toast';
+    t.textContent = message;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3200);
+  }
+
+  // ---------- Esporta / Importa dati ----------
+  const COLLECTION_KEY = 'videoteca-collection-v1';
+  document.getElementById('btnExport').onclick = () => {
+    let data = [];
+    try{ data = JSON.parse(localStorage.getItem(COLLECTION_KEY)) || []; }catch(e){ data = []; }
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'videoteca-backup.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  document.getElementById('btnImport').onclick = () => document.getElementById('fileImport').click();
+
+  const importConfirmOverlay = document.getElementById('importConfirmOverlay');
+  document.getElementById('fileImport').onchange = (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      let data;
+      try{
+        data = JSON.parse(reader.result);
+        if(!Array.isArray(data)) throw new Error('formato non valido');
+      }catch(err){
+        showNotice('Il file selezionato non è un backup valido.');
+        return;
+      }
+      importConfirmOverlay.style.display = 'flex';
+      const yesBtn = document.getElementById('importConfirmYes');
+      const noBtn = document.getElementById('importConfirmNo');
+      const cleanup = () => { importConfirmOverlay.style.display = 'none'; yesBtn.onclick = null; noBtn.onclick = null; };
+      yesBtn.onclick = () => {
+        localStorage.setItem(COLLECTION_KEY, JSON.stringify(data));
+        cleanup();
+        showNotice('Dati importati correttamente.');
+      };
+      noBtn.onclick = cleanup;
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   // Individua dove risiede la sessione corrente (locale o solo per questa scheda)
   const usesLocal = !!localStorage.getItem(AUTH_KEY);
