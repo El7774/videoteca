@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Videoteca — la mia collezione</title>
 <script>
-  // Guardia di accesso: senza sessione attiva si torna al login
-  if (!localStorage.getItem('videoteca-auth') && !sessionStorage.getItem('videoteca-auth')) {
+  // Guardia di accesso: senza un token salvato si torna al login
+  if (!localStorage.getItem('videoteca-token') && !sessionStorage.getItem('videoteca-token')) {
     window.location.replace('index.html');
   }
-  // Applica il tema scelto dall'utente
+  // Applica il tema scelto dall'utente (letto localmente per evitare lo sfarfallio iniziale)
   (function(){
     var theme = localStorage.getItem('videoteca-theme');
     if(theme) document.documentElement.setAttribute('data-theme', theme);
@@ -135,7 +135,37 @@
 
 <script>
 (function(){
-  const STORAGE_KEY = 'videoteca-collection-v1';
+  // ATTENZIONE: sostituisci questo indirizzo con l'URL del tuo server
+  // dopo averlo pubblicato su Render (vedi la guida ricevuta in chat).
+  const API_BASE = 'https://TUO-BACKEND.onrender.com/api';
+
+  function getToken(){
+    return localStorage.getItem('videoteca-token') || sessionStorage.getItem('videoteca-token');
+  }
+  function getStoredUsername(){
+    return localStorage.getItem('videoteca-username') || sessionStorage.getItem('videoteca-username');
+  }
+  function redirectToLogin(){
+    localStorage.removeItem('videoteca-token'); sessionStorage.removeItem('videoteca-token');
+    localStorage.removeItem('videoteca-username'); sessionStorage.removeItem('videoteca-username');
+    window.location.replace('index.html');
+  }
+
+  async function apiFetch(path, options = {}){
+    const token = getToken();
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+    if(token) headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch(API_BASE + path, Object.assign({}, options, { headers }));
+    let data = null;
+    try{ data = await res.json(); }catch(e){ /* risposta vuota */ }
+    if(!res.ok){
+      const err = new Error((data && data.error) || ('Errore del server (' + res.status + ').'));
+      err.status = res.status;
+      throw err;
+    }
+    return data;
+  }
+
   let shows = [];
   let filter = 'all';
   let mediaFilter = 'all';
@@ -196,13 +226,15 @@
     setTimeout(() => toast.remove(), 2900);
   }
 
-  function loadShows(){
+  async function loadShows(){
     try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      shows = raw ? JSON.parse(raw) : [];
+      const data = await apiFetch('/shows');
+      shows = Array.isArray(data) ? data : [];
     }catch(e){
-      console.error('Errore nel caricamento dei dati locali', e);
+      if(e.status === 401){ redirectToLogin(); return; }
+      console.error('Errore nel caricamento della collezione', e);
       shows = [];
+      showNotice('Impossibile contattare il server. Riprova più tardi.');
     }
     ensureLastModified();
   }
@@ -235,12 +267,12 @@
   }
 
   function saveShows(){
-    try{
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(shows));
-    }catch(e){
-      console.error('Errore nel salvataggio dei dati locali', e);
-      showNotice('Non sono riuscito a salvare i dati nel browser. Lo spazio potrebbe essere pieno.');
-    }
+    apiFetch('/shows', { method:'PUT', body: JSON.stringify(shows) })
+      .catch(e => {
+        if(e.status === 401){ redirectToLogin(); return; }
+        console.error('Errore nel salvataggio della collezione', e);
+        showNotice('Non sono riuscito a salvare i dati sul server.');
+      });
   }
 
   function uid(){ return 'id_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
@@ -710,25 +742,18 @@
   };
 
   // ---------- Sessione / Logout ----------
-  const authUser = localStorage.getItem('videoteca-auth') || sessionStorage.getItem('videoteca-auth');
+  const authUser = getStoredUsername();
   const sessionUserName = document.getElementById('sessionUserName');
   if (sessionUserName) sessionUserName.textContent = authUser || '';
   const btnLogout = document.getElementById('btnLogout');
-  if (btnLogout) btnLogout.onclick = () => {
-    localStorage.removeItem('videoteca-auth');
-    sessionStorage.removeItem('videoteca-auth');
-    window.location.replace('index.html');
-  };
+  if (btnLogout) btnLogout.onclick = () => { redirectToLogin(); };
 
   // ---------- Avatar ----------
-  const AVATAR_KEY = 'videoteca-avatar-' + (authUser || '');
   const avatarImg = document.getElementById('avatarImg');
   const avatarInitial = document.getElementById('avatarInitial');
   const avatarInput = document.getElementById('avatarInput');
 
-  function loadAvatar(){
-    let dataUrl = null;
-    try{ dataUrl = localStorage.getItem(AVATAR_KEY); }catch(e){ /* non bloccante */ }
+  function displayAvatar(dataUrl, usernameForInitial){
     if(dataUrl){
       avatarImg.src = dataUrl;
       avatarImg.style.display = 'block';
@@ -736,10 +761,20 @@
     } else {
       avatarImg.style.display = 'none';
       avatarInitial.style.display = 'flex';
-      avatarInitial.textContent = (authUser || '?').trim().charAt(0).toUpperCase();
+      avatarInitial.textContent = (usernameForInitial || '?').trim().charAt(0).toUpperCase();
     }
   }
-  loadAvatar();
+
+  async function loadAccountInfo(){
+    try{
+      const me = await apiFetch('/me');
+      if(me && me.username && sessionUserName) sessionUserName.textContent = me.username;
+      displayAvatar(me ? me.avatar : null, me ? me.username : authUser);
+    }catch(e){
+      if(e.status === 401){ redirectToLogin(); return; }
+      displayAvatar(null, authUser);
+    }
+  }
 
   if(avatarInput) avatarInput.onchange = () => {
     const file = avatarInput.files && avatarInput.files[0];
@@ -756,12 +791,9 @@
         const w = img.width * scale, h = img.height * scale;
         ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-        try{
-          localStorage.setItem(AVATAR_KEY, dataUrl);
-          loadAvatar();
-        }catch(err){
-          showNotice('Non sono riuscito a salvare la foto: spazio insufficiente nel browser.');
-        }
+        apiFetch('/me/avatar', { method:'PUT', body: JSON.stringify({ avatar: dataUrl }) })
+          .then(() => displayAvatar(dataUrl, authUser))
+          .catch(err => showNotice('Non sono riuscito a salvare la foto: ' + err.message));
       };
       img.src = e.target.result;
     };
@@ -770,10 +802,14 @@
   };
 
   // ---------- Init ----------
-  loadShows();
-  loadViewMode();
-  loadFavoritesCollapsed();
-  render();
+  async function init(){
+    loadViewMode();
+    loadFavoritesCollapsed();
+    await loadShows();
+    render();
+    loadAccountInfo();
+  }
+  init();
 })();
 </script>
 </body>

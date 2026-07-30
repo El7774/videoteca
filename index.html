@@ -257,32 +257,40 @@
 
   <script>
     (function () {
-      const USERS_KEY = 'videoteca-users';
-      const AUTH_KEY = 'videoteca-auth';
+      const TOKEN_KEY = 'videoteca-token';
+      const USERNAME_KEY = 'videoteca-username';
 
-      // Se l'utente ha già una sessione attiva, salta direttamente alla homepage
-      if (localStorage.getItem(AUTH_KEY) || sessionStorage.getItem(AUTH_KEY)) {
+      // ATTENZIONE: sostituisci questo indirizzo con l'URL del tuo server
+      // dopo averlo pubblicato su Render (vedi la guida ricevuta in chat).
+      const API_BASE = 'https://TUO-BACKEND.onrender.com/api';
+
+      // Se l'utente ha già un token salvato, salta direttamente alla homepage
+      if (localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY)) {
         window.location.replace('homepage.html');
         return;
       }
 
-      function getUsers() {
-        try {
-          return JSON.parse(localStorage.getItem(USERS_KEY)) || [];
-        } catch (e) {
-          return [];
+      async function apiRequest(path, body) {
+        const res = await fetch(API_BASE + path, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        let data = null;
+        try { data = await res.json(); } catch (e) { /* risposta vuota */ }
+        if (!res.ok) {
+          throw new Error((data && data.error) || 'Impossibile contattare il server.');
         }
+        return data;
       }
 
-      function saveUsers(users) {
-        localStorage.setItem(USERS_KEY, JSON.stringify(users));
-      }
-
-      function setAuth(username, remember) {
+      function setAuth(token, username, remember) {
         if (remember) {
-          localStorage.setItem(AUTH_KEY, username);
+          localStorage.setItem(TOKEN_KEY, token);
+          localStorage.setItem(USERNAME_KEY, username);
         } else {
-          sessionStorage.setItem(AUTH_KEY, username);
+          sessionStorage.setItem(TOKEN_KEY, token);
+          sessionStorage.setItem(USERNAME_KEY, username);
         }
       }
 
@@ -293,6 +301,11 @@
 
       function hideError(el) {
         el.classList.remove('show');
+      }
+
+      function setLoading(button, loading, label) {
+        button.disabled = loading;
+        button.textContent = loading ? 'Attendere…' : label;
       }
 
       const loginView = document.getElementById('loginView');
@@ -314,7 +327,7 @@
 
       // ---- Login ----
       const loginError = document.getElementById('loginError');
-      loginView.addEventListener('submit', function (e) {
+      loginView.addEventListener('submit', async function (e) {
         e.preventDefault();
         hideError(loginError);
 
@@ -327,21 +340,21 @@
           return;
         }
 
-        const users = getUsers();
-        const match = users.find(u => (u.username === username || u.email === username) && u.password === password);
-
-        if (!match) {
-          showError(loginError, 'Username, email o password non corretti.');
-          return;
+        const submitBtn = loginView.querySelector('.login-btn');
+        setLoading(submitBtn, true);
+        try {
+          const data = await apiRequest('/auth/login', { username, password });
+          setAuth(data.token, data.username, remember);
+          window.location.href = 'homepage.html';
+        } catch (err) {
+          showError(loginError, err.message);
+          setLoading(submitBtn, false, 'Login');
         }
-
-        setAuth(match.username, remember);
-        window.location.href = 'homepage.html';
       });
 
       // ---- Register ----
       const registerError = document.getElementById('registerError');
-      registerView.addEventListener('submit', function (e) {
+      registerView.addEventListener('submit', async function (e) {
         e.preventDefault();
         hideError(registerError);
 
@@ -364,20 +377,16 @@
           return;
         }
 
-        const users = getUsers();
-        if (users.some(u => u.username === username)) {
-          showError(registerError, 'Username già in uso.');
-          return;
+        const submitBtn = registerView.querySelector('.login-btn');
+        setLoading(submitBtn, true);
+        try {
+          const data = await apiRequest('/auth/register', { username, email, password });
+          setAuth(data.token, data.username, true);
+          window.location.href = 'homepage.html';
+        } catch (err) {
+          showError(registerError, err.message);
+          setLoading(submitBtn, false, 'Register');
         }
-        if (users.some(u => u.email === email)) {
-          showError(registerError, 'Email già registrata.');
-          return;
-        }
-
-        users.push({ username, email, password });
-        saveUsers(users);
-        setAuth(username, true);
-        window.location.href = 'homepage.html';
       });
     })();
   </script>

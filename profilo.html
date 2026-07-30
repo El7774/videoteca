@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Profilo — Videoteca</title>
 <script>
-  // Guardia di accesso: senza sessione attiva si torna al login
-  if (!localStorage.getItem('videoteca-auth') && !sessionStorage.getItem('videoteca-auth')) {
+  // Guardia di accesso: senza un token salvato si torna al login
+  if (!localStorage.getItem('videoteca-token') && !sessionStorage.getItem('videoteca-token')) {
     window.location.replace('index.html');
   }
   // Applica il tema scelto dall'utente
@@ -173,16 +173,36 @@
 
 <script>
 (function () {
-  const USERS_KEY = 'videoteca-users';
-  const AUTH_KEY = 'videoteca-auth';
+  const TOKEN_KEY = 'videoteca-token';
+  const USERNAME_KEY = 'videoteca-username';
 
-  function getUsers() {
-    try { return JSON.parse(localStorage.getItem(USERS_KEY)) || []; }
-    catch (e) { return []; }
+  // ATTENZIONE: sostituisci questo indirizzo con l'URL del tuo server
+  // dopo averlo pubblicato su Render (vedi la guida ricevuta in chat).
+  const API_BASE = 'https://TUO-BACKEND.onrender.com/api';
+
+  function getToken(){
+    return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
   }
-  function saveUsers(users) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  function redirectToLogin(){
+    localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USERNAME_KEY); sessionStorage.removeItem(USERNAME_KEY);
+    window.location.replace('index.html');
   }
+  async function apiFetch(path, options = {}){
+    const token = getToken();
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+    if(token) headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch(API_BASE + path, Object.assign({}, options, { headers }));
+    let data = null;
+    try{ data = await res.json(); }catch(e){ /* risposta vuota */ }
+    if(!res.ok){
+      const err = new Error((data && data.error) || ('Errore del server (' + res.status + ').'));
+      err.status = res.status;
+      throw err;
+    }
+    return data;
+  }
+
   function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
@@ -204,10 +224,9 @@
   }
 
   // ---------- Esporta / Importa dati ----------
-  const COLLECTION_KEY = 'videoteca-collection-v1';
-  document.getElementById('btnExport').onclick = () => {
+  document.getElementById('btnExport').onclick = async () => {
     let data = [];
-    try{ data = JSON.parse(localStorage.getItem(COLLECTION_KEY)) || []; }catch(e){ data = []; }
+    try{ data = await apiFetch('/shows'); }catch(e){ showNotice('Impossibile contattare il server.'); return; }
     const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -237,10 +256,15 @@
       const yesBtn = document.getElementById('importConfirmYes');
       const noBtn = document.getElementById('importConfirmNo');
       const cleanup = () => { importConfirmOverlay.style.display = 'none'; yesBtn.onclick = null; noBtn.onclick = null; };
-      yesBtn.onclick = () => {
-        localStorage.setItem(COLLECTION_KEY, JSON.stringify(data));
-        cleanup();
-        showNotice('Dati importati correttamente.');
+      yesBtn.onclick = async () => {
+        try{
+          await apiFetch('/shows', { method:'PUT', body: JSON.stringify(data) });
+          cleanup();
+          showNotice('Dati importati correttamente.');
+        }catch(err){
+          cleanup();
+          showNotice('Impossibile salvare i dati importati: ' + err.message);
+        }
       };
       noBtn.onclick = cleanup;
     };
@@ -248,22 +272,19 @@
     e.target.value = '';
   };
 
-  // Individua dove risiede la sessione corrente (locale o solo per questa scheda)
-  const usesLocal = !!localStorage.getItem(AUTH_KEY);
-  let currentUsername = localStorage.getItem(AUTH_KEY) || sessionStorage.getItem(AUTH_KEY);
+  // Username mostrato subito dalla cache locale; verrà confermato dal server sotto
+  let currentUsername = localStorage.getItem(USERNAME_KEY) || sessionStorage.getItem(USERNAME_KEY);
+  const usesLocal = !!localStorage.getItem(TOKEN_KEY);
 
   document.getElementById('profileUsername').textContent = currentUsername || '';
   document.getElementById('deleteUsernameLabel').textContent = currentUsername || '';
 
   // ---------- Avatar ----------
-  function avatarKey(username){ return 'videoteca-avatar-' + (username || ''); }
   const avatarImg = document.getElementById('avatarImg');
   const avatarInitial = document.getElementById('avatarInitial');
   const avatarInput = document.getElementById('avatarInput');
 
-  function loadAvatar(){
-    let dataUrl = null;
-    try{ dataUrl = localStorage.getItem(avatarKey(currentUsername)); }catch(e){ /* non bloccante */ }
+  function displayAvatar(dataUrl){
     if(dataUrl){
       avatarImg.src = dataUrl;
       avatarImg.style.display = 'block';
@@ -274,7 +295,24 @@
       avatarInitial.textContent = (currentUsername || '?').trim().charAt(0).toUpperCase();
     }
   }
-  loadAvatar();
+
+  async function loadAccountInfo(){
+    try{
+      const me = await apiFetch('/me');
+      if(me && me.username){
+        currentUsername = me.username;
+        document.getElementById('profileUsername').textContent = me.username;
+        document.getElementById('deleteUsernameLabel').textContent = me.username;
+        if(usesLocal) localStorage.setItem(USERNAME_KEY, me.username);
+        else sessionStorage.setItem(USERNAME_KEY, me.username);
+      }
+      displayAvatar(me ? me.avatar : null);
+    }catch(e){
+      if(e.status === 401){ redirectToLogin(); return; }
+      displayAvatar(null);
+    }
+  }
+  loadAccountInfo();
 
   if(avatarInput) avatarInput.onchange = () => {
     const file = avatarInput.files && avatarInput.files[0];
@@ -291,10 +329,9 @@
         const w = img.width * scale, h = img.height * scale;
         ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-        try{
-          localStorage.setItem(avatarKey(currentUsername), dataUrl);
-          loadAvatar();
-        }catch(err){ /* spazio insufficiente, ignora */ }
+        apiFetch('/me/avatar', { method:'PUT', body: JSON.stringify({ avatar: dataUrl }) })
+          .then(() => displayAvatar(dataUrl))
+          .catch(err => showNotice('Non sono riuscito a salvare la foto: ' + err.message));
       };
       img.src = e.target.result;
     };
@@ -302,31 +339,8 @@
     avatarInput.value = '';
   };
 
-  function setSessionUsername(username) {
-    const oldKey = avatarKey(currentUsername);
-    const newKey = avatarKey(username);
-    try{
-      const existing = localStorage.getItem(oldKey);
-      if(existing && oldKey !== newKey){
-        localStorage.setItem(newKey, existing);
-        localStorage.removeItem(oldKey);
-      }
-    }catch(e){ /* non bloccante */ }
-
-    currentUsername = username;
-    if (usesLocal) localStorage.setItem(AUTH_KEY, username);
-    else sessionStorage.setItem(AUTH_KEY, username);
-    document.getElementById('profileUsername').textContent = username;
-    document.getElementById('deleteUsernameLabel').textContent = username;
-    loadAvatar();
-  }
-
   // ---------- Logout ----------
-  document.getElementById('btnLogout').onclick = () => {
-    localStorage.removeItem(AUTH_KEY);
-    sessionStorage.removeItem(AUTH_KEY);
-    window.location.replace('index.html');
-  };
+  document.getElementById('btnLogout').onclick = () => { redirectToLogin(); };
 
   // ---------- Cambia username ----------
   const usernameOverlay = document.getElementById('usernameOverlay');
@@ -343,7 +357,7 @@
   document.getElementById('usernameCancel').onclick = () => { usernameOverlay.style.display = 'none'; };
   usernameOverlay.onclick = (e) => { if (e.target === usernameOverlay) usernameOverlay.style.display = 'none'; };
 
-  document.getElementById('usernameForm').addEventListener('submit', function (e) {
+  document.getElementById('usernameForm').addEventListener('submit', async function (e) {
     e.preventDefault();
     hideMsg(usernameError); hideMsg(usernameSuccess);
 
@@ -355,25 +369,24 @@
       return;
     }
 
-    const users = getUsers();
-    const meIndex = users.findIndex(u => u.username === currentUsername && u.password === password);
-    if (meIndex === -1) {
-      showMsg(usernameError, 'Password non corretta.');
-      return;
+    try{
+      const data = await apiFetch('/me/username', {
+        method: 'PATCH',
+        body: JSON.stringify({ newUsername, password })
+      });
+      currentUsername = data.username;
+      if (usesLocal) localStorage.setItem(USERNAME_KEY, data.username);
+      else sessionStorage.setItem(USERNAME_KEY, data.username);
+      document.getElementById('profileUsername').textContent = data.username;
+      document.getElementById('deleteUsernameLabel').textContent = data.username;
+
+      document.getElementById('newUsername').value = '';
+      document.getElementById('usernameConfirmPassword').value = '';
+      showMsg(usernameSuccess, 'Username aggiornato.');
+    }catch(err){
+      if(err.status === 401 && /token|sessione/i.test(err.message)){ redirectToLogin(); return; }
+      showMsg(usernameError, err.message);
     }
-
-    if (newUsername !== currentUsername && users.some(u => u.username === newUsername)) {
-      showMsg(usernameError, 'Username già in uso.');
-      return;
-    }
-
-    users[meIndex].username = newUsername;
-    saveUsers(users);
-    setSessionUsername(newUsername);
-
-    document.getElementById('newUsername').value = '';
-    document.getElementById('usernameConfirmPassword').value = '';
-    showMsg(usernameSuccess, 'Username aggiornato.');
   });
 
   // ---------- Cambia password ----------
@@ -392,7 +405,7 @@
   document.getElementById('passwordCancel').onclick = () => { passwordOverlay.style.display = 'none'; };
   passwordOverlay.onclick = (e) => { if (e.target === passwordOverlay) passwordOverlay.style.display = 'none'; };
 
-  document.getElementById('passwordForm').addEventListener('submit', function (e) {
+  document.getElementById('passwordForm').addEventListener('submit', async function (e) {
     e.preventDefault();
     hideMsg(passwordError); hideMsg(passwordSuccess);
 
@@ -409,20 +422,19 @@
       return;
     }
 
-    const users = getUsers();
-    const meIndex = users.findIndex(u => u.username === currentUsername && u.password === current);
-    if (meIndex === -1) {
-      showMsg(passwordError, 'Password attuale non corretta.');
-      return;
+    try{
+      await apiFetch('/me/password', {
+        method: 'PATCH',
+        body: JSON.stringify({ currentPassword: current, newPassword: next })
+      });
+      document.getElementById('currentPassword').value = '';
+      document.getElementById('newPassword').value = '';
+      document.getElementById('newPasswordConfirm').value = '';
+      showMsg(passwordSuccess, 'Password aggiornata.');
+    }catch(err){
+      if(err.status === 401 && /sessione/i.test(err.message)){ redirectToLogin(); return; }
+      showMsg(passwordError, err.message);
     }
-
-    users[meIndex].password = next;
-    saveUsers(users);
-
-    document.getElementById('currentPassword').value = '';
-    document.getElementById('newPassword').value = '';
-    document.getElementById('newPasswordConfirm').value = '';
-    showMsg(passwordSuccess, 'Password aggiornata.');
   });
 
   // ---------- Cambia tema ----------
@@ -493,22 +505,16 @@
   document.getElementById('deleteCancel').onclick = () => { deleteOverlay.style.display = 'none'; };
   deleteOverlay.onclick = (e) => { if (e.target === deleteOverlay) deleteOverlay.style.display = 'none'; };
 
-  document.getElementById('deleteConfirm').onclick = () => {
+  document.getElementById('deleteConfirm').onclick = async () => {
     const password = document.getElementById('deleteConfirmPassword').value;
     hideMsg(deleteError);
 
-    const users = getUsers();
-    const meIndex = users.findIndex(u => u.username === currentUsername && u.password === password);
-    if (meIndex === -1) {
-      showMsg(deleteError, 'Password non corretta.');
-      return;
+    try{
+      await apiFetch('/me', { method: 'DELETE', body: JSON.stringify({ password }) });
+      redirectToLogin();
+    }catch(err){
+      showMsg(deleteError, err.message);
     }
-
-    users.splice(meIndex, 1);
-    saveUsers(users);
-    localStorage.removeItem(AUTH_KEY);
-    sessionStorage.removeItem(AUTH_KEY);
-    window.location.replace('index.html');
   };
 })();
 </script>
