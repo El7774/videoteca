@@ -255,6 +255,23 @@
     </div>
   </form>
 
+  <div class="overlay" id="forgotOverlay" style="display:none;">
+    <div class="modal">
+      <h2>Password dimenticata</h2>
+      <p style="margin-bottom:16px; font-size:14px; color:var(--muted);">Inserisci il tuo username o la tua email: se l'account esiste, ti mandiamo un link per reimpostare la password.</p>
+      <div class="form-error" id="forgotError"></div>
+      <div class="form-success" id="forgotSuccess"></div>
+      <div class="field">
+        <label>Username o email</label>
+        <input type="text" id="forgotIdentifier" placeholder="Username o email">
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="forgotCancel">Chiudi</button>
+        <button class="btn primary" id="forgotSubmit">Invia link</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     (function () {
       const TOKEN_KEY = 'videoteca-token';
@@ -323,7 +340,43 @@
         loginView.classList.add('active');
       };
 
-      document.getElementById('forgotLink').onclick = (e) => e.preventDefault();
+      document.getElementById('forgotLink').onclick = (e) => {
+        e.preventDefault();
+        hideError(forgotError);
+        forgotSuccessEl.classList.remove('show');
+        document.getElementById('forgotIdentifier').value = '';
+        forgotOverlay.style.display = 'flex';
+      };
+
+      const forgotOverlay = document.getElementById('forgotOverlay');
+      const forgotError = document.getElementById('forgotError');
+      const forgotSuccessEl = document.getElementById('forgotSuccess');
+
+      document.getElementById('forgotCancel').onclick = () => { forgotOverlay.style.display = 'none'; };
+      forgotOverlay.onclick = (e) => { if (e.target === forgotOverlay) forgotOverlay.style.display = 'none'; };
+
+      document.getElementById('forgotSubmit').onclick = async () => {
+        hideError(forgotError);
+        forgotSuccessEl.classList.remove('show');
+
+        const identifier = document.getElementById('forgotIdentifier').value.trim();
+        if (!identifier) {
+          showError(forgotError, 'Inserisci username o email.');
+          return;
+        }
+
+        const submitBtn = document.getElementById('forgotSubmit');
+        setLoading(submitBtn, true, 'Invia link');
+        try {
+          const data = await apiRequest('/auth/forgot-password', { identifier });
+          forgotSuccessEl.textContent = data.message || "Se l'account esiste, riceverai a breve un'email.";
+          forgotSuccessEl.classList.add('show');
+          setLoading(submitBtn, false, 'Invia link');
+        } catch (err) {
+          showError(forgotError, err.message);
+          setLoading(submitBtn, false, 'Invia link');
+        }
+      };
 
       // ---- Login ----
       const loginError = document.getElementById('loginError');
