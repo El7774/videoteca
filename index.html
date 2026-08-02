@@ -283,7 +283,7 @@
 
       // Se l'utente ha già un token salvato, salta direttamente alla homepage
       if (localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY)) {
-        window.location.replace('homepage.html');
+        window.location.replace('welcome.html');
         return;
       }
 
@@ -398,7 +398,7 @@
         try {
           const data = await apiRequest('/auth/login', { username, password });
           setAuth(data.token, data.username, remember);
-          window.location.href = 'homepage.html';
+          window.location.href = 'welcome.html';
         } catch (err) {
           showError(loginError, err.message);
           setLoading(submitBtn, false, 'Login');
@@ -435,7 +435,7 @@
         try {
           const data = await apiRequest('/auth/register', { username, email, password });
           setAuth(data.token, data.username, true);
-          window.location.href = 'homepage.html';
+          window.location.href = 'welcome.html';
         } catch (err) {
           showError(registerError, err.message);
           setLoading(submitBtn, false, 'Register');
