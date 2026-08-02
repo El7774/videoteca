@@ -198,12 +198,6 @@
       <p class="loading-percent" id="centerProgressPercent">0%</p>
       <p class="loading-message" id="loadingText">Riavvolgendo le pellicole…</p>
     </div>
-
-    <div class="mt-9 flex items-center justify-center gap-3">
-      <a href="homepage.html" class="inline-flex items-center gap-2 bg-[var(--orange)] text-[#FCEFE6] font-semibold text-sm px-6 py-3 rounded-full hover:brightness-110 transition">
-        <i class="fa-solid fa-book-open"></i> Esplora la libreria
-      </a>
-    </div>
   </section>
 
   <!-- ================= COSA GUARDIAMO OGGI ================= -->
@@ -454,7 +448,7 @@
 
     // ATTENZIONE: sostituisci questo indirizzo con l'URL del tuo server
     // dopo averlo pubblicato su Render (stessa riga già vista negli altri file).
-    const API_BASE = 'https://videoteca-backend.onrender.com/api';
+    const API_BASE = 'https://TUO-BACKEND.onrender.com/api';
 
     function getToken(){
       return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
@@ -520,7 +514,7 @@
 
     const redirectTimer = setTimeout(goToHomepage, REDIRECT_AFTER_MS);
 
-    // Il pulsante "Salta" e "Esplora la libreria" saltano subito in avanti
+    // Il pulsante "Salta" salta subito in avanti
     document.getElementById('skipLink').addEventListener('click', () => { clearTimeout(redirectTimer); clearInterval(msgInterval); });
     document.querySelectorAll('a[href="homepage.html"]').forEach(a => {
       a.addEventListener('click', () => { clearTimeout(redirectTimer); clearInterval(msgInterval); });
