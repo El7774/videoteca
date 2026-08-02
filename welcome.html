@@ -160,11 +160,7 @@
         <span class="font-display text-xl tracking-wide">VIDEOTECA</span>
       </div>
 
-      <div id="greeting" class="hidden sm:block text-sm text-[var(--muted)]"></div>
-
-      <a href="homepage.html" id="skipLink" class="text-sm font-semibold text-[var(--muted)] hover:text-[var(--text)] transition-colors">
-        Salta <i class="fa-solid fa-forward text-xs ml-1"></i>
-      </a>
+      <div id="greeting" class="text-sm text-[var(--muted)]"></div>
     </div>
   </header>
 
@@ -514,8 +510,6 @@
 
     const redirectTimer = setTimeout(goToHomepage, REDIRECT_AFTER_MS);
 
-    // Il pulsante "Salta" salta subito in avanti
-    document.getElementById('skipLink').addEventListener('click', () => { clearTimeout(redirectTimer); clearInterval(msgInterval); });
     document.querySelectorAll('a[href="homepage.html"]').forEach(a => {
       a.addEventListener('click', () => { clearTimeout(redirectTimer); clearInterval(msgInterval); });
     });
