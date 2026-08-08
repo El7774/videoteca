@@ -79,8 +79,8 @@
       <input type="text" id="onlineSearchInput" placeholder="Cerca una serie TV o un film online...">
     </div>
     <button class="btn primary" id="btnOnlineSearch">Cerca online</button>
-    <span class="badge-soon">Presto disponibile</span>
   </div>
+  <div class="online-search-results" id="onlineSearchResults" style="display:none;"></div>
 
   <div class="favorites-section" id="favoritesSection">
     <div class="favorites-header" id="favoritesHeader">
@@ -137,7 +137,7 @@
 (function(){
   // ATTENZIONE: sostituisci questo indirizzo con l'URL del tuo server
   // dopo averlo pubblicato su Render (vedi la guida ricevuta in chat).
-  const API_BASE = 'https://videoteca-backend.onrender.com/api';
+  const API_BASE = 'https://TUO-BACKEND.onrender.com/api';
 
   function getToken(){
     return localStorage.getItem('videoteca-token') || sessionStorage.getItem('videoteca-token');
@@ -410,6 +410,7 @@
       ${isFilm ? '' : `<span class="tile-progress">${watched}/${total} · ${pct}%</span>`}
       <div class="meta-row">
         <span class="status-badge ${statusKey}">${STATUS_LABELS[statusKey]}</span>
+        ${show.episodeRuntime ? `<span class="runtime-badge">⏱ ${show.episodeRuntime} min${isFilm ? '' : '/ep'}</span>` : ''}
         <div class="stars" data-action="stars">
           ${[1,2,3,4,5].map(n => `<button class="star ${show.rating>=n?'on':''}" data-star="${n}">★</button>`).join('')}
         </div>
@@ -702,6 +703,7 @@
       type: newType,
       rating: 0,
       favorite: false,
+      episodeRuntime: null,
       lastModifiedAt: Date.now(),
       seasons
     });
@@ -711,13 +713,97 @@
     render();
   };
 
-  // ---------- Ricerca online (placeholder) ----------
-  function notifyOnlineSearchComingSoon(){
-    showNotice('La ricerca online sarà disponibile prossimamente.');
+  // ---------- Ricerca online (TMDB) ----------
+  const onlineSearchInput = document.getElementById('onlineSearchInput');
+  const onlineSearchResults = document.getElementById('onlineSearchResults');
+
+  function closeOnlineSearchResults(){
+    onlineSearchResults.style.display = 'none';
+    onlineSearchResults.innerHTML = '';
   }
-  document.getElementById('btnOnlineSearch').onclick = notifyOnlineSearchComingSoon;
-  document.getElementById('onlineSearchInput').addEventListener('keydown', (e) => {
-    if(e.key === 'Enter'){ e.preventDefault(); notifyOnlineSearchComingSoon(); }
+
+  function mediaTypeLabel(mediaType){
+    return mediaType === 'movie' ? 'Film' : 'Serie TV';
+  }
+
+  async function runOnlineSearch(){
+    const query = onlineSearchInput.value.trim();
+    if(!query){
+      showNotice('Scrivi qualcosa da cercare.');
+      return;
+    }
+
+    onlineSearchResults.style.display = 'block';
+    onlineSearchResults.innerHTML = '<div class="online-search-status">Ricerca in corso…</div>';
+
+    let results;
+    try{
+      results = await apiFetch('/catalog/search?query=' + encodeURIComponent(query));
+    }catch(e){
+      if(e.status === 401){ redirectToLogin(); return; }
+      onlineSearchResults.innerHTML = '<div class="online-search-status">' + escapeHtml(e.message) + '</div>';
+      return;
+    }
+
+    if(!results || results.length === 0){
+      onlineSearchResults.innerHTML = '<div class="online-search-status">Nessun risultato per "' + escapeHtml(query) + '".</div>';
+      return;
+    }
+
+    onlineSearchResults.innerHTML = '';
+    results.forEach(r => {
+      const item = document.createElement('div');
+      item.className = 'online-search-result';
+      item.innerHTML = `
+        <div class="online-search-poster">${r.posterUrl ? `<img src="${r.posterUrl}" alt="">` : '🎬'}</div>
+        <div class="online-search-info">
+          <div class="online-search-title">${escapeHtml(r.title)}${r.year ? ' <span class="online-search-year">(' + escapeHtml(r.year) + ')</span>' : ''}</div>
+          <span class="type-badge ${r.mediaType === 'movie' ? 'film' : 'serie'}">${mediaTypeLabel(r.mediaType)}</span>
+        </div>
+        <button class="btn primary online-search-add">+ Aggiungi</button>
+      `;
+      item.querySelector('.online-search-add').onclick = () => addFromOnlineSearch(r, item);
+      onlineSearchResults.appendChild(item);
+    });
+  }
+
+  async function addFromOnlineSearch(result, itemEl){
+    const addBtn = itemEl.querySelector('.online-search-add');
+    addBtn.disabled = true;
+    addBtn.textContent = 'Attendere…';
+
+    let details;
+    try{
+      details = await apiFetch('/catalog/details?id=' + result.tmdbId + '&type=' + result.mediaType);
+    }catch(e){
+      if(e.status === 401){ redirectToLogin(); return; }
+      showNotice('Impossibile recuperare i dettagli: ' + e.message);
+      addBtn.disabled = false;
+      addBtn.textContent = '+ Aggiungi';
+      return;
+    }
+
+    shows.unshift({
+      id: uid(),
+      title: details.title,
+      type: details.type,
+      rating: 0,
+      favorite: false,
+      episodeRuntime: details.episodeRuntime || null,
+      lastModifiedAt: Date.now(),
+      seasons: details.seasons
+    });
+    saveShows();
+    filter = 'all';
+    render();
+
+    showNotice('"' + details.title + '" aggiunto alla videoteca.');
+    addBtn.textContent = '✓ Aggiunto';
+  }
+
+  document.getElementById('btnOnlineSearch').onclick = runOnlineSearch;
+  onlineSearchInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){ e.preventDefault(); runOnlineSearch(); }
   });
 
   // ---------- Media toggle ----------
