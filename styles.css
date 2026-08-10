@@ -117,23 +117,41 @@
 
   /* ---------- Favorites section ---------- */
   /* ---------- Ricerca online (TMDB) ---------- */
-  .online-search-bar{ display:flex; align-items:center; gap: 12px; margin-bottom: 10px; padding: 14px 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); flex-wrap: wrap; }
+  .online-search-bar{ position: relative; display:flex; align-items:center; gap: 12px; margin-bottom: 28px; padding: 14px 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); flex-wrap: wrap; }
   .online-search-field{ flex:1; min-width: 220px; display:flex; align-items:center; gap: 8px; background: var(--panel-raised); border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; }
   .online-search-field input{ flex:1; background: transparent; border: none; outline: none; color: var(--text); font-family:'Inter',sans-serif; font-size: 14px; }
   .online-search-field input::placeholder{ color: var(--muted); }
+  .online-search-field input[type=search]::-webkit-search-cancel-button{ cursor: pointer; }
   .online-search-icon{ opacity: 0.7; }
 
-  .online-search-results{ margin-bottom: 28px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); max-height: 420px; overflow-y: auto; }
+  .online-search-live{
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 40;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--panel-raised);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+    max-height: 70vh;
+    overflow-y: auto;
+  }
   .online-search-status{ padding: 14px; text-align: center; color: var(--muted); font-family:'JetBrains Mono',monospace; font-size: 13px; }
-  .online-search-result{ display:flex; align-items:center; gap: 14px; padding: 10px; border-radius: 10px; transition: background 0.15s ease; }
-  .online-search-result:hover{ background: var(--panel-raised); }
+  .online-search-result{ display:flex; align-items:center; gap: 14px; padding: 10px; border-radius: 10px; transition: background 0.15s ease; cursor: default; }
+  .online-search-result:hover{ background: var(--panel); }
   .online-search-result + .online-search-result{ border-top: 1px solid var(--line); margin-top: 2px; padding-top: 12px; }
-  .online-search-poster{ width: 46px; height: 66px; flex-shrink:0; border-radius: 6px; overflow:hidden; background: var(--panel-raised); display:flex; align-items:center; justify-content:center; font-size: 20px; }
+  .online-search-poster{ width: 42px; height: 60px; flex-shrink:0; border-radius: 6px; overflow:hidden; background: var(--panel); display:flex; align-items:center; justify-content:center; font-size: 18px; }
   .online-search-poster img{ width:100%; height:100%; object-fit:cover; }
   .online-search-info{ flex:1; min-width:0; }
   .online-search-title{ font-family:'Inter',sans-serif; font-weight:600; font-size: 14px; color: var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom: 4px; }
   .online-search-year{ font-weight:400; color: var(--muted); }
   .online-search-add{ flex-shrink:0; padding: 8px 14px; font-size: 13px; }
+  .online-search-see-all{ display:block; width:100%; text-align:center; margin-top: 6px; padding: 10px; background: transparent; border: none; border-top: 1px solid var(--line); color: var(--orange); font-family:'JetBrains Mono',monospace; font-size: 12.5px; cursor: pointer; }
+  .online-search-see-all:hover{ color: var(--text); }
 
   .runtime-badge{ font-family:'JetBrains Mono',monospace; font-size: 11px; color: var(--muted); border: 1px solid var(--line); padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
 

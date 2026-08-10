@@ -73,18 +73,14 @@
     </div>
   </div>
 
-  <div class="online-search-bar">
+  <form class="online-search-bar" id="onlineSearchForm">
     <div class="online-search-field">
       <span class="online-search-icon">🔍</span>
-      <input type="text" id="onlineSearchInput" placeholder="Cerca online...">
+      <input type="search" id="onlineSearchInput" placeholder="Cerca online..." enterkeyhint="search" autocomplete="off">
     </div>
-    <div class="media-toggle" id="onlineSearchSource">
-      <button class="media-btn active" data-source="tmdb">Film & Serie</button>
-      <button class="media-btn" data-source="anime">Anime</button>
-    </div>
-    <button class="btn primary" id="btnOnlineSearch">Cerca online</button>
-  </div>
-  <div class="online-search-results" id="onlineSearchResults" style="display:none;"></div>
+    <button type="submit" class="btn primary" id="btnOnlineSearch">Cerca online</button>
+    <div class="online-search-live" id="onlineSearchLive" style="display:none;"></div>
+  </form>
 
   <div class="favorites-section" id="favoritesSection">
     <div class="favorites-header" id="favoritesHeader">
@@ -141,7 +137,7 @@
 (function(){
   // ATTENZIONE: sostituisci questo indirizzo con l'URL del tuo server
   // dopo averlo pubblicato su Render (vedi la guida ricevuta in chat).
-  const API_BASE = 'https://videoteca-backend.onrender.com/api';
+  const API_BASE = 'https://TUO-BACKEND.onrender.com/api';
 
   function getToken(){
     return localStorage.getItem('videoteca-token') || sessionStorage.getItem('videoteca-token');
@@ -718,72 +714,108 @@
   };
 
   // ---------- Ricerca online (TMDB + Jikan) ----------
+  const onlineSearchForm = document.getElementById('onlineSearchForm');
   const onlineSearchInput = document.getElementById('onlineSearchInput');
-  const onlineSearchResults = document.getElementById('onlineSearchResults');
-  let onlineSearchSource = 'tmdb';
-
-  document.querySelectorAll('#onlineSearchSource .media-btn').forEach(btn => {
-    btn.onclick = () => {
-      onlineSearchSource = btn.dataset.source;
-      document.querySelectorAll('#onlineSearchSource .media-btn').forEach(b => b.classList.toggle('active', b === btn));
-      closeOnlineSearchResults();
-    };
-  });
-
-  function closeOnlineSearchResults(){
-    onlineSearchResults.style.display = 'none';
-    onlineSearchResults.innerHTML = '';
-  }
+  const onlineSearchLive = document.getElementById('onlineSearchLive');
+  let liveSearchDebounce = null;
+  let liveSearchToken = 0;
 
   function mediaTypeLabel(mediaType, source){
     const base = mediaType === 'movie' ? 'Film' : 'Serie TV';
     return source === 'anime' ? 'Anime · ' + base : base;
   }
 
-  async function runOnlineSearch(){
-    const query = onlineSearchInput.value.trim();
-    if(!query){
-      showNotice('Scrivi qualcosa da cercare.');
-      return;
-    }
-
-    onlineSearchResults.style.display = 'block';
-    onlineSearchResults.innerHTML = '<div class="online-search-status">Ricerca in corso…</div>';
-
-    const source = onlineSearchSource;
-    const endpoint = source === 'anime' ? '/catalog/search-anime' : '/catalog/search';
-
-    let results;
-    try{
-      results = await apiFetch(endpoint + '?query=' + encodeURIComponent(query));
-    }catch(e){
-      if(e.status === 401){ redirectToLogin(); return; }
-      onlineSearchResults.innerHTML = '<div class="online-search-status">' + escapeHtml(e.message) + '</div>';
-      return;
-    }
-
-    if(!results || results.length === 0){
-      onlineSearchResults.innerHTML = '<div class="online-search-status">Nessun risultato per "' + escapeHtml(query) + '".</div>';
-      return;
-    }
-
-    onlineSearchResults.innerHTML = '';
-    results.forEach(r => {
-      r.source = source;
-      const item = document.createElement('div');
-      item.className = 'online-search-result';
-      item.innerHTML = `
-        <div class="online-search-poster">${r.posterUrl ? `<img src="${r.posterUrl}" alt="">` : (source === 'anime' ? '🎌' : '🎬')}</div>
-        <div class="online-search-info">
-          <div class="online-search-title">${escapeHtml(r.title)}${r.year ? ' <span class="online-search-year">(' + escapeHtml(r.year) + ')</span>' : ''}</div>
-          <span class="type-badge ${r.mediaType === 'movie' ? 'film' : 'serie'}">${mediaTypeLabel(r.mediaType, source)}</span>
-        </div>
-        <button class="btn primary online-search-add">+ Aggiungi</button>
-      `;
-      item.querySelector('.online-search-add').onclick = () => addFromOnlineSearch(r, item);
-      onlineSearchResults.appendChild(item);
-    });
+  function closeLiveResults(){
+    onlineSearchLive.style.display = 'none';
+    onlineSearchLive.innerHTML = '';
   }
+
+  async function fetchCombinedResults(query){
+    const [tmdbResult, animeResult] = await Promise.allSettled([
+      apiFetch('/catalog/search?query=' + encodeURIComponent(query)),
+      apiFetch('/catalog/search-anime?query=' + encodeURIComponent(query))
+    ]);
+    if(tmdbResult.status === 'rejected' && tmdbResult.reason && tmdbResult.reason.status === 401){ redirectToLogin(); throw tmdbResult.reason; }
+    if(animeResult.status === 'rejected' && animeResult.reason && animeResult.reason.status === 401){ redirectToLogin(); throw animeResult.reason; }
+
+    const tmdbList = (tmdbResult.status === 'fulfilled' ? tmdbResult.value : []).map(r => Object.assign({}, r, { source: 'tmdb' }));
+    const animeList = (animeResult.status === 'fulfilled' ? animeResult.value : []).map(r => Object.assign({}, r, { source: 'anime' }));
+    return tmdbList.concat(animeList);
+  }
+
+  function buildResultRow(r){
+    const item = document.createElement('div');
+    item.className = 'online-search-result';
+    item.innerHTML = `
+      <div class="online-search-poster">${r.posterUrl ? `<img src="${r.posterUrl}" alt="">` : (r.source === 'anime' ? '🎌' : '🎬')}</div>
+      <div class="online-search-info">
+        <div class="online-search-title">${escapeHtml(r.title)}${r.year ? ' <span class="online-search-year">(' + escapeHtml(r.year) + ')</span>' : ''}</div>
+        <span class="type-badge ${r.mediaType === 'movie' ? 'film' : 'serie'}">${mediaTypeLabel(r.mediaType, r.source)}</span>
+      </div>
+      <button type="button" class="btn primary online-search-add">+ Aggiungi</button>
+    `;
+    item.querySelector('.online-search-add').onclick = (e) => { e.stopPropagation(); addFromOnlineSearch(r, item); };
+    return item;
+  }
+
+  // Suggerimenti live mentre si scrive
+  onlineSearchInput.addEventListener('input', () => {
+    const query = onlineSearchInput.value.trim();
+    clearTimeout(liveSearchDebounce);
+
+    if(!query){
+      closeLiveResults();
+      return;
+    }
+
+    liveSearchDebounce = setTimeout(async () => {
+      const myToken = ++liveSearchToken;
+      onlineSearchLive.style.display = 'block';
+      onlineSearchLive.innerHTML = '<div class="online-search-status">Ricerca in corso…</div>';
+
+      let results;
+      try{
+        results = await fetchCombinedResults(query);
+      }catch(e){
+        if(myToken !== liveSearchToken) return;
+        onlineSearchLive.innerHTML = '<div class="online-search-status">' + escapeHtml(e.message || 'Errore durante la ricerca.') + '</div>';
+        return;
+      }
+      if(myToken !== liveSearchToken) return; // arrivata una ricerca più recente nel frattempo
+
+      if(!results || results.length === 0){
+        onlineSearchLive.innerHTML = '<div class="online-search-status">Nessun risultato per "' + escapeHtml(query) + '".</div>';
+        return;
+      }
+
+      onlineSearchLive.innerHTML = '';
+      results.slice(0, 6).forEach(r => onlineSearchLive.appendChild(buildResultRow(r)));
+
+      const seeAll = document.createElement('button');
+      seeAll.type = 'button';
+      seeAll.className = 'online-search-see-all';
+      seeAll.textContent = 'Vedi tutti i risultati per "' + query + '" →';
+      seeAll.onclick = () => goToSearchPage(query);
+      onlineSearchLive.appendChild(seeAll);
+    }, 350);
+  });
+
+  function goToSearchPage(query){
+    closeLiveResults();
+    window.location.href = 'search.html?q=' + encodeURIComponent(query);
+  }
+
+  onlineSearchForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const query = onlineSearchInput.value.trim();
+    if(!query){ showNotice('Scrivi qualcosa da cercare.'); return; }
+    goToSearchPage(query);
+  });
+
+  // Chiude la tendina se si clicca fuori
+  document.addEventListener('click', (e) => {
+    if(!onlineSearchForm.contains(e.target)) closeLiveResults();
+  });
 
   async function addFromOnlineSearch(result, itemEl){
     const addBtn = itemEl.querySelector('.online-search-add');
@@ -822,11 +854,6 @@
     showNotice('"' + details.title + '" aggiunto alla videoteca.');
     addBtn.textContent = '✓ Aggiunto';
   }
-
-  document.getElementById('btnOnlineSearch').onclick = runOnlineSearch;
-  onlineSearchInput.addEventListener('keydown', (e) => {
-    if(e.key === 'Enter'){ e.preventDefault(); runOnlineSearch(); }
-  });
 
   // ---------- Media toggle ----------
   document.querySelectorAll('.media-btn').forEach(btn => {
