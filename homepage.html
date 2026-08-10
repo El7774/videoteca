@@ -76,7 +76,11 @@
   <div class="online-search-bar">
     <div class="online-search-field">
       <span class="online-search-icon">🔍</span>
-      <input type="text" id="onlineSearchInput" placeholder="Cerca una serie TV o un film online...">
+      <input type="text" id="onlineSearchInput" placeholder="Cerca online...">
+    </div>
+    <div class="media-toggle" id="onlineSearchSource">
+      <button class="media-btn active" data-source="tmdb">Film & Serie</button>
+      <button class="media-btn" data-source="anime">Anime</button>
     </div>
     <button class="btn primary" id="btnOnlineSearch">Cerca online</button>
   </div>
@@ -137,7 +141,7 @@
 (function(){
   // ATTENZIONE: sostituisci questo indirizzo con l'URL del tuo server
   // dopo averlo pubblicato su Render (vedi la guida ricevuta in chat).
-  const API_BASE = 'https://videoteca-backend.onrender.com/api';
+  const API_BASE = 'https://TUO-BACKEND.onrender.com/api';
 
   function getToken(){
     return localStorage.getItem('videoteca-token') || sessionStorage.getItem('videoteca-token');
@@ -713,17 +717,27 @@
     render();
   };
 
-  // ---------- Ricerca online (TMDB) ----------
+  // ---------- Ricerca online (TMDB + Jikan) ----------
   const onlineSearchInput = document.getElementById('onlineSearchInput');
   const onlineSearchResults = document.getElementById('onlineSearchResults');
+  let onlineSearchSource = 'tmdb';
+
+  document.querySelectorAll('#onlineSearchSource .media-btn').forEach(btn => {
+    btn.onclick = () => {
+      onlineSearchSource = btn.dataset.source;
+      document.querySelectorAll('#onlineSearchSource .media-btn').forEach(b => b.classList.toggle('active', b === btn));
+      closeOnlineSearchResults();
+    };
+  });
 
   function closeOnlineSearchResults(){
     onlineSearchResults.style.display = 'none';
     onlineSearchResults.innerHTML = '';
   }
 
-  function mediaTypeLabel(mediaType){
-    return mediaType === 'movie' ? 'Film' : 'Serie TV';
+  function mediaTypeLabel(mediaType, source){
+    const base = mediaType === 'movie' ? 'Film' : 'Serie TV';
+    return source === 'anime' ? 'Anime · ' + base : base;
   }
 
   async function runOnlineSearch(){
@@ -736,9 +750,12 @@
     onlineSearchResults.style.display = 'block';
     onlineSearchResults.innerHTML = '<div class="online-search-status">Ricerca in corso…</div>';
 
+    const source = onlineSearchSource;
+    const endpoint = source === 'anime' ? '/catalog/search-anime' : '/catalog/search';
+
     let results;
     try{
-      results = await apiFetch('/catalog/search?query=' + encodeURIComponent(query));
+      results = await apiFetch(endpoint + '?query=' + encodeURIComponent(query));
     }catch(e){
       if(e.status === 401){ redirectToLogin(); return; }
       onlineSearchResults.innerHTML = '<div class="online-search-status">' + escapeHtml(e.message) + '</div>';
@@ -752,13 +769,14 @@
 
     onlineSearchResults.innerHTML = '';
     results.forEach(r => {
+      r.source = source;
       const item = document.createElement('div');
       item.className = 'online-search-result';
       item.innerHTML = `
-        <div class="online-search-poster">${r.posterUrl ? `<img src="${r.posterUrl}" alt="">` : '🎬'}</div>
+        <div class="online-search-poster">${r.posterUrl ? `<img src="${r.posterUrl}" alt="">` : (source === 'anime' ? '🎌' : '🎬')}</div>
         <div class="online-search-info">
           <div class="online-search-title">${escapeHtml(r.title)}${r.year ? ' <span class="online-search-year">(' + escapeHtml(r.year) + ')</span>' : ''}</div>
-          <span class="type-badge ${r.mediaType === 'movie' ? 'film' : 'serie'}">${mediaTypeLabel(r.mediaType)}</span>
+          <span class="type-badge ${r.mediaType === 'movie' ? 'film' : 'serie'}">${mediaTypeLabel(r.mediaType, source)}</span>
         </div>
         <button class="btn primary online-search-add">+ Aggiungi</button>
       `;
@@ -772,9 +790,13 @@
     addBtn.disabled = true;
     addBtn.textContent = 'Attendere…';
 
+    const detailsPath = result.source === 'anime'
+      ? '/catalog/details-anime?id=' + result.malId
+      : '/catalog/details?id=' + result.tmdbId + '&type=' + result.mediaType;
+
     let details;
     try{
-      details = await apiFetch('/catalog/details?id=' + result.tmdbId + '&type=' + result.mediaType);
+      details = await apiFetch(detailsPath);
     }catch(e){
       if(e.status === 401){ redirectToLogin(); return; }
       showNotice('Impossibile recuperare i dettagli: ' + e.message);
