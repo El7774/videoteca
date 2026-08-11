@@ -19,43 +19,37 @@
 
 </head>
 <body>
-<div class="wrap">
-  <div class="session-bar">
-    <div class="session-identity">
+
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="homepage.html" class="topnav-logo">videoteca</a>
+
+    <div class="topnav-links">
+      <a href="homepage.html" class="topnav-link active" id="navBoard">Board</a>
+      <a href="#" class="topnav-link" id="navMovies">Movies</a>
+      <a href="#" class="topnav-link" id="navSeries">Series</a>
+      <a href="#" class="topnav-link" id="navAnime">Anime</a>
+      <a href="#" class="topnav-link" id="navStats">Statistiche</a>
+    </div>
+
+    <form class="topnav-search" id="onlineSearchForm">
+      <span class="online-search-icon">🔍</span>
+      <input type="search" id="onlineSearchInput" placeholder="Search" enterkeyhint="search" autocomplete="off">
+      <div class="online-search-live" id="onlineSearchLive" style="display:none;"></div>
+    </form>
+
+    <div class="topnav-user">
       <label class="avatar-upload" id="avatarUpload" title="Cambia foto profilo">
         <img class="avatar-img" id="avatarImg" alt="">
         <span class="avatar-initial" id="avatarInitial"></span>
         <input type="file" accept="image/*" id="avatarInput" hidden>
       </label>
-      <a href="profilo.html" class="profile-link"><strong id="sessionUserName"></strong></a>
+      <a href="profilo.html" class="profile-link topnav-username"><strong id="sessionUserName"></strong></a>
     </div>
-    <button class="btn ghost" id="btnLogout">Esci</button>
   </div>
-  <header>
-    <div>
-      <h1>Videoteca</h1>
-    </div>
-    <div class="stats-groups">
-      <div class="stat-group">
-        <p class="stat-group-title">Serie TV</p>
-        <div class="stat-group-row">
-          <div class="stat"><span class="n" id="statSerieTotal">0</span><span class="l">Totali</span></div>
-          <div class="stat"><span class="n" id="statSerieWatching">0</span><span class="l">In corso</span></div>
-          <div class="stat"><span class="n" id="statSerieDone">0</span><span class="l">Completate</span></div>
-        </div>
-      </div>
-      <div class="stat-group">
-        <p class="stat-group-title">Film</p>
-        <div class="stat-group-row">
-          <div class="stat"><span class="n" id="statFilmTotal">0</span><span class="l">Totali</span></div>
-          <div class="stat"><span class="n" id="statFilmPlanned">0</span><span class="l">Da vedere</span></div>
-          <div class="stat"><span class="n" id="statFilmDone">0</span><span class="l">Visti</span></div>
-        </div>
-      </div>
-    </div>
-  </header>
+</nav>
 
-  <div class="toolbar">
+<div class="wrap">
     <div style="display:flex; gap: 14px; flex-wrap: wrap; align-items:center;">
       <div class="media-toggle" id="mediaToggle">
         <button class="media-btn active" data-media="all">Tutto</button>
@@ -72,15 +66,6 @@
       <button class="btn primary" id="btnAdd">+ Aggiungi titolo</button>
     </div>
   </div>
-
-  <form class="online-search-bar" id="onlineSearchForm">
-    <div class="online-search-field">
-      <span class="online-search-icon">🔍</span>
-      <input type="search" id="onlineSearchInput" placeholder="Cerca online..." enterkeyhint="search" autocomplete="off">
-    </div>
-    <button type="submit" class="btn primary" id="btnOnlineSearch">Cerca online</button>
-    <div class="online-search-live" id="onlineSearchLive" style="display:none;"></div>
-  </form>
 
   <div class="favorites-section" id="favoritesSection">
     <div class="favorites-header" id="favoritesHeader">
@@ -137,7 +122,7 @@
 (function(){
   // ATTENZIONE: sostituisci questo indirizzo con l'URL del tuo server
   // dopo averlo pubblicato su Render (vedi la guida ricevuta in chat).
-  const API_BASE = 'https://videoteca-backend.onrender.com/api';
+  const API_BASE = 'https://TUO-BACKEND.onrender.com/api';
 
   function getToken(){
     return localStorage.getItem('videoteca-token') || sessionStorage.getItem('videoteca-token');
@@ -372,12 +357,13 @@
   function renderStats(){
     const serie = shows.filter(s => s.type === 'serie');
     const film = shows.filter(s => s.type === 'film');
-    document.getElementById('statSerieTotal').textContent = serie.length;
-    document.getElementById('statSerieWatching').textContent = serie.filter(s=>computeStatus(s)==='watching').length;
-    document.getElementById('statSerieDone').textContent = serie.filter(s=>computeStatus(s)==='completed').length;
-    document.getElementById('statFilmTotal').textContent = film.length;
-    document.getElementById('statFilmPlanned').textContent = film.filter(s=>computeStatus(s)==='planned').length;
-    document.getElementById('statFilmDone').textContent = film.filter(s=>computeStatus(s)==='completed').length;
+    const setText = (id, value) => { const el = document.getElementById(id); if(el) el.textContent = value; };
+    setText('statSerieTotal', serie.length);
+    setText('statSerieWatching', serie.filter(s=>computeStatus(s)==='watching').length);
+    setText('statSerieDone', serie.filter(s=>computeStatus(s)==='completed').length);
+    setText('statFilmTotal', film.length);
+    setText('statFilmPlanned', film.filter(s=>computeStatus(s)==='planned').length);
+    setText('statFilmDone', film.filter(s=>computeStatus(s)==='completed').length);
   }
 
   function createShowCard(show){
@@ -860,6 +846,39 @@
     btn.onclick = () => { mediaFilter = btn.dataset.media; filter = 'all'; render(); };
   });
 
+  // ---------- Barra di navigazione in alto ----------
+  function setActiveNavLink(link){
+    document.querySelectorAll('.topnav-link').forEach(a => a.classList.remove('active'));
+    link.classList.add('active');
+  }
+
+  document.getElementById('navBoard').onclick = (e) => {
+    e.preventDefault();
+    mediaFilter = 'all'; filter = 'all'; render();
+    setActiveNavLink(e.currentTarget);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  document.getElementById('navMovies').onclick = (e) => {
+    e.preventDefault();
+    mediaFilter = 'film'; filter = 'all'; render();
+    setActiveNavLink(e.currentTarget);
+    document.getElementById('grid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  document.getElementById('navSeries').onclick = (e) => {
+    e.preventDefault();
+    mediaFilter = 'serie'; filter = 'all'; render();
+    setActiveNavLink(e.currentTarget);
+    document.getElementById('grid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  document.getElementById('navAnime').onclick = (e) => {
+    e.preventDefault();
+    showNotice('La sezione Anime dedicata sarà disponibile in futuro.');
+  };
+  document.getElementById('navStats').onclick = (e) => {
+    e.preventDefault();
+    showNotice('La pagina Statistiche sarà disponibile in futuro.');
+  };
+
   // ---------- View toggle ----------
   document.querySelectorAll('.view-btn').forEach(btn => {
     btn.onclick = () => {
@@ -880,8 +899,6 @@
   const authUser = getStoredUsername();
   const sessionUserName = document.getElementById('sessionUserName');
   if (sessionUserName) sessionUserName.textContent = authUser || '';
-  const btnLogout = document.getElementById('btnLogout');
-  if (btnLogout) btnLogout.onclick = () => { redirectToLogin(); };
 
   // ---------- Avatar ----------
   const avatarImg = document.getElementById('avatarImg');

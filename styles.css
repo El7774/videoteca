@@ -181,6 +181,30 @@
   .avatar-upload-lg{ width: 72px; height: 72px; border-radius: 12px; }
   .avatar-upload-lg .avatar-initial{ font-size: 28px; }
 
+  /* ---------- Barra di navigazione superiore ---------- */
+  .topnav{ position: sticky; top: 0; z-index: 50; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .topnav-inner{ max-width: 1400px; margin: 0 auto; display:flex; align-items:center; gap: 28px; padding: 14px 32px; }
+  .topnav-logo{ font-family:'Inter',sans-serif; font-weight:800; font-size: 19px; letter-spacing: -0.5px; color: var(--text); text-decoration:none; flex-shrink:0; }
+  .topnav-links{ display:flex; align-items:center; gap: 22px; flex-shrink:0; }
+  .topnav-link{ font-family:'Inter',sans-serif; font-size: 14px; font-weight:500; color: var(--muted); text-decoration:none; white-space:nowrap; transition: color 0.15s ease; }
+  .topnav-link:hover{ color: var(--text); }
+  .topnav-link.active{ color: var(--text); font-weight:600; }
+
+  .topnav-search{ position:relative; flex:1; max-width: 320px; margin-left:auto; display:flex; align-items:center; gap: 8px; background: var(--panel-raised); border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; }
+  .topnav-search input{ flex:1; min-width:0; background: transparent; border: none; outline: none; color: var(--text); font-family:'Inter',sans-serif; font-size: 13px; }
+  .topnav-search input::placeholder{ color: var(--muted); }
+  .topnav-search .online-search-live{ left: auto; right: 0; width: 340px; max-width: 80vw; }
+
+  .topnav-user{ display:flex; align-items:center; gap: 10px; flex-shrink:0; }
+  .topnav-user a.profile-link{ color: var(--text); text-decoration: none; cursor: pointer; font-family:'Inter',sans-serif; font-size: 13px; font-weight:600; }
+  .topnav-user a.profile-link:hover{ color: var(--orange); }
+
+  @media (max-width: 900px){
+    .topnav-links{ display:none; }
+    .topnav-inner{ gap: 14px; padding: 12px 16px; }
+    .topnav-search{ max-width: none; }
+  }
+
   /* ---------- Header ---------- */
   header{ display:flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; margin-bottom: 28px; border-bottom: 1px dashed var(--line); padding-bottom: 24px; }
   .eyebrow{ font-family:'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 3px; color: var(--orange); text-transform: uppercase; margin: 0 0 6px; }
