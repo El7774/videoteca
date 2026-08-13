@@ -22,7 +22,13 @@
 
 <nav class="topnav">
   <div class="topnav-inner">
-    <a href="homepage.html" class="topnav-logo">videoteca</a>
+    <a href="homepage.html" class="topnav-logo">vid<span class="clapper" aria-hidden="true"><svg viewBox="0 0 24 24" class="clapper-svg">
+      <rect x="2" y="11" width="20" height="10" rx="2" class="clapper-base"/>
+      <rect x="2" y="3" width="20" height="7" rx="1.5" class="clapper-arm">
+        <animateTransform attributeName="transform" type="rotate" values="0 3 11; -24 3 11; 0 3 11" keyTimes="0;0.4;1" dur="2.6s" repeatCount="indefinite"/>
+      </rect>
+      <circle cx="3" cy="11" r="1.3" class="clapper-hinge"/>
+    </svg></span>oteca</a>
 
     <div class="topnav-links">
       <a href="homepage.html" class="topnav-link active" id="navBoard">Board</a>
@@ -48,6 +54,12 @@
     </div>
   </div>
 </nav>
+
+<script>
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    document.querySelectorAll('.clapper-arm animateTransform').forEach(el => el.remove());
+  }
+</script>
 
 <div class="wrap">
     <div style="display:flex; gap: 14px; flex-wrap: wrap; align-items:center;">
@@ -122,7 +134,7 @@
 (function(){
   // ATTENZIONE: sostituisci questo indirizzo con l'URL del tuo server
   // dopo averlo pubblicato su Render (vedi la guida ricevuta in chat).
-  const API_BASE = 'https://videoteca-backend.onrender.com/api';
+  const API_BASE = 'https://TUO-BACKEND.onrender.com/api';
 
   function getToken(){
     return localStorage.getItem('videoteca-token') || sessionStorage.getItem('videoteca-token');
