@@ -188,7 +188,7 @@
   .topnav-links{ display:flex; align-items:center; gap: 22px; flex-shrink:0; }
   .topnav-link{ font-family:'Inter',sans-serif; font-size: 14px; font-weight:500; color: var(--muted); text-decoration:none; white-space:nowrap; transition: color 0.15s ease; }
   .topnav-link:hover{ color: var(--text); }
-  .topnav-link.active{ color: var(--text); font-weight:600; }
+  .topnav-link.active{ color: var(--text); font-weight:500; }
 
   .topnav-search{ position:relative; flex:1; max-width: 320px; margin-left:auto; display:flex; align-items:center; gap: 8px; background: var(--panel-raised); border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; }
   .topnav-search input{ flex:1; min-width:0; background: transparent; border: none; outline: none; color: var(--text); font-family:'Inter',sans-serif; font-size: 13px; }
