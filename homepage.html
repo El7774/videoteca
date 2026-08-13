@@ -62,9 +62,6 @@
 </script>
 
 <div class="wrap">
-  <div class="actions">
-    <button class="btn primary" id="btnAdd">+ Aggiungi titolo</button>
-  </div>
 
   <div class="favorites-section" id="favoritesSection">
     <div class="favorites-header" id="favoritesHeader">
@@ -74,38 +71,11 @@
         <button class="favorites-arrow" id="favoritesPrev" title="Precedente" aria-label="Precedente">‹</button>
         <button class="favorites-arrow" id="favoritesNext" title="Successivo" aria-label="Successivo">›</button>
       </div>
-      <button class="favorites-toggle" id="favoritesToggle" title="Comprimi/espandi">▾</button>
     </div>
     <div class="favorites-carousel" id="favoritesGrid"></div>
   </div>
 
   <div class="grid" id="grid"></div>
-</div>
-
-<div class="overlay" id="overlay" style="display:none;">
-  <div class="modal">
-    <h2>Nuovo titolo</h2>
-    <div class="field">
-      <label>Titolo</label>
-      <input type="text" id="newTitle" placeholder="Es. Breaking Bad">
-    </div>
-    <div class="field">
-      <label>Tipo</label>
-      <div class="radio-row" id="typeRow">
-        <div class="radio-opt sel" data-type="serie">Serie TV</div>
-        <div class="radio-opt" data-type="film">Film</div>
-      </div>
-    </div>
-    <div class="field" id="seasonsField">
-      <label>Numero di stagioni iniziali</label>
-      <input type="number" id="newSeasons" value="1" min="1" max="50">
-    </div>
-    <p class="hint">Potrai modificare stagioni ed episodi in qualsiasi momento dalla card del titolo.</p>
-    <div class="modal-actions">
-      <button class="btn ghost" id="btnCancel">Annulla</button>
-      <button class="btn primary" id="btnCreate">Crea</button>
-    </div>
-  </div>
 </div>
 
 <div class="overlay" id="confirmOverlay" style="display:none;">
@@ -125,7 +95,7 @@
 (function(){
   // ATTENZIONE: sostituisci questo indirizzo con l'URL del tuo server
   // dopo averlo pubblicato su Render (vedi la guida ricevuta in chat).
-  const API_BASE = 'https://videoteca-backend.onrender.com/api';
+  const API_BASE = 'https://TUO-BACKEND.onrender.com/api';
 
   function getToken(){
     return localStorage.getItem('videoteca-token') || sessionStorage.getItem('videoteca-token');
@@ -157,9 +127,7 @@
   let shows = [];
   let filter = 'all';
   let mediaFilter = 'all';
-  let newType = 'serie';
   let viewMode = 'rect';
-  let favoritesCollapsed = false;
   const toggledIds = new Set();
 
   function isCardExpanded(show){
@@ -233,14 +201,6 @@
       if(!s.lastModifiedAt) s.lastModifiedAt = now;
       if(typeof s.favorite !== 'boolean') s.favorite = false;
     });
-  }
-
-  const FAVORITES_COLLAPSED_KEY = 'videoteca-favorites-collapsed';
-  function loadFavoritesCollapsed(){
-    try{ favoritesCollapsed = localStorage.getItem(FAVORITES_COLLAPSED_KEY) === '1'; }catch(e){ /* resta il default */ }
-  }
-  function saveFavoritesCollapsed(){
-    try{ localStorage.setItem(FAVORITES_COLLAPSED_KEY, favoritesCollapsed ? '1' : '0'); }catch(e){ /* non bloccante */ }
   }
 
   function saveShows(){
@@ -589,8 +549,6 @@
     const countEl = document.getElementById('favoritesCount');
     const favorites = shows.filter(s => s.favorite);
 
-    section.classList.toggle('collapsed', favoritesCollapsed);
-
     countEl.textContent = favorites.length;
     carousel.innerHTML = '';
 
@@ -615,52 +573,6 @@
     renderFavorites();
     renderGrid();
   }
-
-  // ---------- Modal / creation ----------
-  const overlay = document.getElementById('overlay');
-  document.getElementById('btnAdd').onclick = () => {
-    document.getElementById('newTitle').value = '';
-    document.getElementById('newSeasons').value = 1;
-    newType = 'serie';
-    document.querySelectorAll('.radio-opt').forEach(o => o.classList.toggle('sel', o.dataset.type === 'serie'));
-    document.getElementById('seasonsField').style.display = 'block';
-    overlay.style.display = 'flex';
-    document.getElementById('newTitle').focus();
-  };
-  document.getElementById('btnCancel').onclick = () => { overlay.style.display = 'none'; };
-  overlay.onclick = (e) => { if(e.target === overlay) overlay.style.display = 'none'; };
-
-  document.querySelectorAll('.radio-opt').forEach(opt => {
-    opt.onclick = () => {
-      newType = opt.dataset.type;
-      document.querySelectorAll('.radio-opt').forEach(o => o.classList.toggle('sel', o === opt));
-      document.getElementById('seasonsField').style.display = newType === 'serie' ? 'block' : 'none';
-    };
-  });
-
-  document.getElementById('btnCreate').onclick = () => {
-    const title = document.getElementById('newTitle').value.trim();
-    if(!title){ showNotice('Inserisci un titolo.'); return; }
-    const seasonsCount = newType === 'serie' ? Math.max(1, parseInt(document.getElementById('newSeasons').value,10) || 1) : 1;
-    const seasons = [];
-    for(let i=0;i<seasonsCount;i++){
-      seasons.push({episodeCount: 1, watched: [false]});
-    }
-    shows.unshift({
-      id: uid(),
-      title,
-      type: newType,
-      rating: 0,
-      favorite: false,
-      episodeRuntime: null,
-      lastModifiedAt: Date.now(),
-      seasons
-    });
-    saveShows();
-    overlay.style.display = 'none';
-    filter = 'all';
-    render();
-  };
 
   // ---------- Ricerca online (TMDB + Jikan) ----------
   const onlineSearchForm = document.getElementById('onlineSearchForm');
@@ -838,20 +750,11 @@
     showNotice('La pagina Statistiche sarà disponibile in futuro.');
   };
 
-  // ---------- Favorites collapse ----------
-  document.getElementById('favoritesHeader').onclick = () => {
-    favoritesCollapsed = !favoritesCollapsed;
-    saveFavoritesCollapsed();
-    renderFavorites();
-  };
-
   // ---------- Favorites carousel arrows ----------
-  document.getElementById('favoritesPrev').onclick = (e) => {
-    e.stopPropagation();
+  document.getElementById('favoritesPrev').onclick = () => {
     document.getElementById('favoritesGrid').scrollBy({ left: -320, behavior: 'smooth' });
   };
-  document.getElementById('favoritesNext').onclick = (e) => {
-    e.stopPropagation();
+  document.getElementById('favoritesNext').onclick = () => {
     document.getElementById('favoritesGrid').scrollBy({ left: 320, behavior: 'smooth' });
   };
 
@@ -915,7 +818,6 @@
 
   // ---------- Init ----------
   async function init(){
-    loadFavoritesCollapsed();
     await loadShows();
     render();
     loadAccountInfo();
