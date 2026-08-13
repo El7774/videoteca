@@ -68,11 +68,15 @@
 
   <div class="favorites-section" id="favoritesSection">
     <div class="favorites-header" id="favoritesHeader">
-      <h2>❤ Preferiti</h2>
+      <h2>Preferiti</h2>
       <span class="favorites-count" id="favoritesCount">0</span>
+      <div class="favorites-nav-arrows">
+        <button class="favorites-arrow" id="favoritesPrev" title="Precedente" aria-label="Precedente">‹</button>
+        <button class="favorites-arrow" id="favoritesNext" title="Successivo" aria-label="Successivo">›</button>
+      </div>
       <button class="favorites-toggle" id="favoritesToggle" title="Comprimi/espandi">▾</button>
     </div>
-    <div class="grid" id="favoritesGrid"></div>
+    <div class="favorites-carousel" id="favoritesGrid"></div>
   </div>
 
   <div class="grid" id="grid"></div>
@@ -121,7 +125,7 @@
 (function(){
   // ATTENZIONE: sostituisci questo indirizzo con l'URL del tuo server
   // dopo averlo pubblicato su Render (vedi la guida ricevuta in chat).
-  const API_BASE = 'https://videoteca-backend.onrender.com/api';
+  const API_BASE = 'https://TUO-BACKEND.onrender.com/api';
 
   function getToken(){
     return localStorage.getItem('videoteca-token') || sessionStorage.getItem('videoteca-token');
@@ -550,26 +554,54 @@
     list.forEach(show => grid.appendChild(createShowCard(show)));
   }
 
+  function buildFavoriteCard(show){
+    const hue = hashHue(show.title);
+    const gradient = `linear-gradient(160deg, hsla(${hue},45%,26%,1), hsla(${(hue+40)%360},35%,14%,1))`;
+
+    const card = document.createElement('div');
+    card.className = 'fav-card';
+
+    const badges = [];
+    if(show.rating > 0) badges.push(`<span class="fav-rating">★ ${show.rating}/5</span>`);
+    if(show.episodeRuntime) badges.push(`<span class="fav-runtime">⏱ ${show.episodeRuntime} min</span>`);
+
+    card.innerHTML = `
+      <div class="fav-poster" style="background:${gradient};">
+        ${show.posterUrl ? `<img src="${show.posterUrl}" alt="" loading="lazy">` : ''}
+        <button class="fav-remove" title="Rimuovi dai preferiti" data-action="unfavorite">♥</button>
+      </div>
+      ${badges.length ? `<div class="fav-meta">${badges.join('')}</div>` : ''}
+      <div class="fav-title">${escapeHtml(show.title)}</div>
+    `;
+
+    card.querySelector('[data-action="unfavorite"]').onclick = () => {
+      show.favorite = false;
+      touchShow(show);
+      saveShows(); render();
+    };
+
+    return card;
+  }
+
   function renderFavorites(){
     const section = document.getElementById('favoritesSection');
-    const grid = document.getElementById('favoritesGrid');
+    const carousel = document.getElementById('favoritesGrid');
     const countEl = document.getElementById('favoritesCount');
     const favorites = shows.filter(s => s.favorite);
 
     section.classList.toggle('collapsed', favoritesCollapsed);
 
     countEl.textContent = favorites.length;
-    grid.innerHTML = '';
-    grid.className = 'grid view-' + viewMode;
+    carousel.innerHTML = '';
 
     if(favorites.length === 0){
       section.classList.add('empty-state');
-      grid.innerHTML = '<div class="empty" style="grid-column: 1/-1;"><h2>Nessun preferito</h2><p>Clicca sul cuore ♡ su un titolo per aggiungerlo qui.</p></div>';
+      carousel.innerHTML = '<div class="empty" style="width:100%;"><h2>Nessun preferito</h2><p>Clicca sul cuore ♡ su un titolo per aggiungerlo qui.</p></div>';
       return;
     }
 
     section.classList.remove('empty-state');
-    favorites.forEach(show => grid.appendChild(createShowCard(show)));
+    favorites.forEach(show => carousel.appendChild(buildFavoriteCard(show)));
   }
 
   function escapeHtml(str){
@@ -761,6 +793,7 @@
       rating: 0,
       favorite: false,
       episodeRuntime: details.episodeRuntime || null,
+      posterUrl: result.posterUrl || null,
       lastModifiedAt: Date.now(),
       seasons: details.seasons
     });
@@ -810,6 +843,16 @@
     favoritesCollapsed = !favoritesCollapsed;
     saveFavoritesCollapsed();
     renderFavorites();
+  };
+
+  // ---------- Favorites carousel arrows ----------
+  document.getElementById('favoritesPrev').onclick = (e) => {
+    e.stopPropagation();
+    document.getElementById('favoritesGrid').scrollBy({ left: -320, behavior: 'smooth' });
+  };
+  document.getElementById('favoritesNext').onclick = (e) => {
+    e.stopPropagation();
+    document.getElementById('favoritesGrid').scrollBy({ left: 320, behavior: 'smooth' });
   };
 
   // ---------- Sessione / Logout ----------
