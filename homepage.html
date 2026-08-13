@@ -62,21 +62,8 @@
 </script>
 
 <div class="wrap">
-    <div style="display:flex; gap: 14px; flex-wrap: wrap; align-items:center;">
-      <div class="media-toggle" id="mediaToggle">
-        <button class="media-btn active" data-media="all">Tutto</button>
-        <button class="media-btn" data-media="serie">Serie TV</button>
-        <button class="media-btn" data-media="film">Film</button>
-      </div>
-      <div class="view-toggle" id="viewToggle">
-        <button class="view-btn active" data-view="rect" title="Vista rettangolare">▭ Rettangolare</button>
-        <button class="view-btn" data-view="compact" title="Vista compatta">≡ Compatto</button>
-      </div>
-      <div class="tabs" id="tabs"></div>
-    </div>
-    <div class="actions">
-      <button class="btn primary" id="btnAdd">+ Aggiungi titolo</button>
-    </div>
+  <div class="actions">
+    <button class="btn primary" id="btnAdd">+ Aggiungi titolo</button>
   </div>
 
   <div class="favorites-section" id="favoritesSection">
@@ -134,7 +121,7 @@
 (function(){
   // ATTENZIONE: sostituisci questo indirizzo con l'URL del tuo server
   // dopo averlo pubblicato su Render (vedi la guida ricevuta in chat).
-  const API_BASE = 'https://videoteca-backend.onrender.com/api';
+  const API_BASE = 'https://TUO-BACKEND.onrender.com/api';
 
   function getToken(){
     return localStorage.getItem('videoteca-token') || sessionStorage.getItem('videoteca-token');
@@ -244,17 +231,6 @@
     });
   }
 
-  const VIEW_STORAGE_KEY = 'videoteca-viewmode-v1';
-  function loadViewMode(){
-    try{
-      const raw = localStorage.getItem(VIEW_STORAGE_KEY);
-      if(raw === 'rect' || raw === 'compact') viewMode = raw;
-    }catch(e){ /* ignora, resta il default */ }
-  }
-  function saveViewMode(){
-    try{ localStorage.setItem(VIEW_STORAGE_KEY, viewMode); }catch(e){ /* non bloccante */ }
-  }
-
   const FAVORITES_COLLAPSED_KEY = 'videoteca-favorites-collapsed';
   function loadFavoritesCollapsed(){
     try{ favoritesCollapsed = localStorage.getItem(FAVORITES_COLLAPSED_KEY) === '1'; }catch(e){ /* resta il default */ }
@@ -290,60 +266,6 @@
     completed: 'Completato',
     dropped: 'Abbandonato'
   };
-
-  const TABS = [
-    {key:'all', label:'Tutti'},
-    {key:'watching', label:'In corso'},
-    {key:'planned', label:'Da vedere'},
-    {key:'completed', label:'Completati'},
-    {key:'dropped', label:'Abbandonati'}
-  ];
-
-  function renderTabs(){
-    const tabsEl = document.getElementById('tabs');
-    tabsEl.innerHTML = '';
-    const subset = mediaFilter === 'all' ? shows : shows.filter(s => s.type === mediaFilter);
-
-    const allTab = TABS.find(t => t.key === 'all');
-    const allBtn = document.createElement('button');
-    allBtn.className = 'tab' + (filter === 'all' ? ' active' : '');
-    allBtn.textContent = allTab.label + ' (' + subset.length + ')';
-    allBtn.onclick = () => { filter = 'all'; render(); };
-    tabsEl.appendChild(allBtn);
-
-    const select = document.createElement('select');
-    select.className = 'status-filter-select';
-    select.id = 'statusFilterSelect';
-
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = 'Altri filtri…';
-    select.appendChild(placeholder);
-
-    TABS.filter(t => t.key !== 'all').forEach(t => {
-      const count = subset.filter(s => computeStatus(s) === t.key).length;
-      const opt = document.createElement('option');
-      opt.value = t.key;
-      opt.textContent = t.label + ' (' + count + ')';
-      select.appendChild(opt);
-    });
-
-    select.value = (filter === 'all') ? '' : filter;
-    select.onchange = () => { filter = select.value || 'all'; render(); };
-    tabsEl.appendChild(select);
-  }
-
-  function renderMediaToggle(){
-    document.querySelectorAll('.media-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.media === mediaFilter);
-    });
-  }
-
-  function renderViewToggle(){
-    document.querySelectorAll('.view-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.view === viewMode);
-    });
-  }
 
   function computeProgress(show){
     let total = 0, watched = 0;
@@ -657,9 +579,6 @@
   }
 
   function render(){
-    renderMediaToggle();
-    renderViewToggle();
-    renderTabs();
     renderStats();
     renderFavorites();
     renderGrid();
@@ -853,11 +772,6 @@
     addBtn.textContent = '✓ Aggiunto';
   }
 
-  // ---------- Media toggle ----------
-  document.querySelectorAll('.media-btn').forEach(btn => {
-    btn.onclick = () => { mediaFilter = btn.dataset.media; filter = 'all'; render(); };
-  });
-
   // ---------- Barra di navigazione in alto ----------
   function setActiveNavLink(link){
     document.querySelectorAll('.topnav-link').forEach(a => a.classList.remove('active'));
@@ -890,15 +804,6 @@
     e.preventDefault();
     showNotice('La pagina Statistiche sarà disponibile in futuro.');
   };
-
-  // ---------- View toggle ----------
-  document.querySelectorAll('.view-btn').forEach(btn => {
-    btn.onclick = () => {
-      viewMode = btn.dataset.view;
-      saveViewMode();
-      render();
-    };
-  });
 
   // ---------- Favorites collapse ----------
   document.getElementById('favoritesHeader').onclick = () => {
@@ -967,7 +872,6 @@
 
   // ---------- Init ----------
   async function init(){
-    loadViewMode();
     loadFavoritesCollapsed();
     await loadShows();
     render();

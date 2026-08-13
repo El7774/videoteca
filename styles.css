@@ -238,7 +238,7 @@
   .status-filter-select:hover{ border-color: var(--orange-dim); color: var(--text); }
   .status-filter-select:focus{ outline: none; border-color: var(--orange); color: var(--text); }
   .status-filter-select option{ background: rgba(255,255,255,0.92); color: #111111; }
-  .actions{ display:flex; gap: 10px; }
+  .actions{ display:flex; gap: 10px; margin-bottom: 22px; }
   button.btn{ font-family:'Inter',sans-serif; font-weight:600; font-size: 14px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel-raised); color: var(--text); padding: 10px 16px; cursor: pointer; }
   button.btn:hover{ border-color: var(--orange-dim); }
   button.btn.primary{ background: var(--orange); color: #FCEFE6; border-color: var(--orange); }
