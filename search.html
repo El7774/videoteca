@@ -64,7 +64,7 @@
 
   // ATTENZIONE: sostituisci questo indirizzo con l'URL del tuo server
   // dopo averlo pubblicato su Render (stesso indirizzo usato negli altri file).
-  const API_BASE = 'https://videoteca-backend.onrender.com/api';
+  const API_BASE = 'https://TUO-BACKEND.onrender.com/api';
 
   function getToken(){
     return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
@@ -251,6 +251,7 @@
       type: details.type,
       rating: 0,
       favorite: false,
+      isAnime: result.source === 'anime',
       episodeRuntime: details.episodeRuntime || null,
       posterUrl: result.posterUrl || null,
       lastModifiedAt: Date.now(),

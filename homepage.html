@@ -95,7 +95,7 @@
 (function(){
   // ATTENZIONE: sostituisci questo indirizzo con l'URL del tuo server
   // dopo averlo pubblicato su Render (vedi la guida ricevuta in chat).
-  const API_BASE = 'https://videoteca-backend.onrender.com/api';
+  const API_BASE = 'https://TUO-BACKEND.onrender.com/api';
 
   function getToken(){
     return localStorage.getItem('videoteca-token') || sessionStorage.getItem('videoteca-token');
@@ -200,6 +200,7 @@
     shows.forEach(s => {
       if(!s.lastModifiedAt) s.lastModifiedAt = now;
       if(typeof s.favorite !== 'boolean') s.favorite = false;
+      if(typeof s.isAnime !== 'boolean') s.isAnime = false;
     });
   }
 
@@ -250,6 +251,13 @@
     const last = show.lastModifiedAt || 0;
     if(Date.now() - last > DROP_THRESHOLD_MS) return 'dropped';
     return 'watching';
+  }
+
+  // 'all' = tutto, 'anime' = solo anime (film o serie), 'film'/'serie' = solo quel tipo, esclusi gli anime
+  function filterByMedia(list, media){
+    if(media === 'all') return list;
+    if(media === 'anime') return list.filter(s => s.isAnime);
+    return list.filter(s => s.type === media && !s.isAnime);
   }
 
   function renderStats(){
@@ -503,7 +511,7 @@
     const grid = document.getElementById('grid');
     grid.innerHTML = '';
     grid.className = 'grid view-' + viewMode;
-    let list = mediaFilter === 'all' ? shows : shows.filter(s => s.type === mediaFilter);
+    let list = filterByMedia(shows, mediaFilter);
     list = filter === 'all' ? list : list.filter(s => computeStatus(s) === filter);
 
     if(list.length === 0){
@@ -547,7 +555,7 @@
     const section = document.getElementById('favoritesSection');
     const carousel = document.getElementById('favoritesGrid');
     const countEl = document.getElementById('favoritesCount');
-    const favorites = shows.filter(s => s.favorite);
+    const favorites = filterByMedia(shows.filter(s => s.favorite), mediaFilter);
 
     countEl.textContent = favorites.length;
     carousel.innerHTML = '';
@@ -704,6 +712,7 @@
       type: details.type,
       rating: 0,
       favorite: false,
+      isAnime: result.source === 'anime',
       episodeRuntime: details.episodeRuntime || null,
       posterUrl: result.posterUrl || null,
       lastModifiedAt: Date.now(),
@@ -743,7 +752,9 @@
   };
   document.getElementById('navAnime').onclick = (e) => {
     e.preventDefault();
-    showNotice('La sezione Anime dedicata sarà disponibile in futuro.');
+    mediaFilter = 'anime'; filter = 'all'; render();
+    setActiveNavLink(e.currentTarget);
+    document.getElementById('grid').scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
   document.getElementById('navStats').onclick = (e) => {
     e.preventDefault();
