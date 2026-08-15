@@ -101,6 +101,31 @@
   function uid(){
     return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
   }
+
+  // Interroga l'API anime (Jikan) per capire se un titolo è un anime, così finisce
+  // nella sezione giusta indipendentemente da quale risultato di ricerca (TMDB o Jikan)
+  // è stato cliccato per aggiungerlo. Confronto tollerante: ignora maiuscole/minuscole,
+  // punteggiatura e accenti, e considera corrispondenza anche come prefisso
+  // (es. "Dragon Ball Z" deve corrispondere anche a "Dragon Ball Z: ...")
+  function normalizeTitleForMatch(str){
+    return (str || '')
+      .toLowerCase()
+      .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
+  async function detectIsAnime(title){
+    try{
+      const animeResults = await apiFetch('/catalog/search-anime?query=' + encodeURIComponent(title));
+      const target = normalizeTitleForMatch(title);
+      return (animeResults || []).some(r => {
+        const candidate = normalizeTitleForMatch(r.title);
+        return candidate === target || candidate.startsWith(target + ' ') || target.startsWith(candidate + ' ');
+      });
+    }catch(e){
+      return null;
+    }
+  }
   function showNotice(message){
     const t = document.createElement('div');
     t.className = 'notice-toast';
@@ -251,7 +276,7 @@
       type: details.type,
       rating: 0,
       favorite: false,
-      isAnime: result.source === 'anime',
+      isAnime: result.source === 'anime' ? true : (await detectIsAnime(details.title)) === true,
       episodeRuntime: details.episodeRuntime || null,
       posterUrl: result.posterUrl || null,
       lastModifiedAt: Date.now(),

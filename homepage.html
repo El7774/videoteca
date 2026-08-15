@@ -217,9 +217,9 @@
     show.lastModifiedAt = Date.now();
   }
 
-  // Quando un titolo viene messo tra i preferiti, controlla l'API anime (Jikan)
-  // per capire se appartiene alla categoria Anime, così finisce nella sezione giusta
-  // (Film, Serie TV o Anime) senza bisogno di saperlo già in anticipo.
+  // Interroga l'API anime (Jikan) per capire se un titolo è un anime, così finisce
+  // nella sezione giusta (Film, Serie TV o Anime) indipendentemente da quale risultato
+  // di ricerca (TMDB o Jikan) è stato cliccato per aggiungerlo.
   // Confronto tollerante: ignora maiuscole/minuscole, punteggiatura e accenti,
   // e considera corrispondenza anche se uno dei due titoli è un prefisso dell'altro
   // (es. "Dragon Ball Z" deve corrispondere anche a "Dragon Ball Z: ...")
@@ -231,19 +231,23 @@
       .trim();
   }
 
-  async function classifyForFavorites(show){
-    let isAnimeMatch = false;
+  async function detectIsAnime(title){
     try{
-      const animeResults = await apiFetch('/catalog/search-anime?query=' + encodeURIComponent(show.title));
-      const target = normalizeTitleForMatch(show.title);
-      isAnimeMatch = (animeResults || []).some(r => {
+      const animeResults = await apiFetch('/catalog/search-anime?query=' + encodeURIComponent(title));
+      const target = normalizeTitleForMatch(title);
+      return (animeResults || []).some(r => {
         const candidate = normalizeTitleForMatch(r.title);
         return candidate === target || candidate.startsWith(target + ' ') || target.startsWith(candidate + ' ');
       });
     }catch(e){
-      // Se la ricerca non va a buon fine (rete assente, ecc.), lascia la classificazione invariata
-      return;
+      // Se la ricerca non va a buon fine (rete assente, ecc.), non azzardare una risposta
+      return null;
     }
+  }
+
+  async function classifyForFavorites(show){
+    const isAnimeMatch = await detectIsAnime(show.title);
+    if(isAnimeMatch === null) return; // ricerca non riuscita: lascia la classificazione invariata
     if(show.isAnime !== isAnimeMatch){
       show.isAnime = isAnimeMatch;
       saveShows();
@@ -725,13 +729,17 @@
       return;
     }
 
+    // Se il risultato cliccato viene già da Jikan (fonte anime) non serve verificare oltre;
+    // altrimenti controlla comunque su Jikan, perché anche i risultati TMDB possono essere anime.
+    const isAnime = result.source === 'anime' ? true : (await detectIsAnime(details.title)) === true;
+
     shows.unshift({
       id: uid(),
       title: details.title,
       type: details.type,
       rating: 0,
       favorite: false,
-      isAnime: result.source === 'anime',
+      isAnime,
       episodeRuntime: details.episodeRuntime || null,
       posterUrl: result.posterUrl || null,
       lastModifiedAt: Date.now(),
