@@ -95,7 +95,7 @@
 (function(){
   // ATTENZIONE: sostituisci questo indirizzo con l'URL del tuo server
   // dopo averlo pubblicato su Render (vedi la guida ricevuta in chat).
-  const API_BASE = 'https://videoteca-backend.onrender.com/api';
+  const API_BASE = 'https://TUO-BACKEND.onrender.com/api';
 
   function getToken(){
     return localStorage.getItem('videoteca-token') || sessionStorage.getItem('videoteca-token');
@@ -217,6 +217,25 @@
 
   function touchShow(show){
     show.lastModifiedAt = Date.now();
+  }
+
+  // Quando un titolo viene messo tra i preferiti, controlla l'API anime (Jikan)
+  // per capire se appartiene alla categoria Anime, così finisce nella sezione giusta
+  // (Film, Serie TV o Anime) senza bisogno di saperlo già in anticipo.
+  async function classifyForFavorites(show){
+    let isAnimeMatch = false;
+    try{
+      const animeResults = await apiFetch('/catalog/search-anime?query=' + encodeURIComponent(show.title));
+      isAnimeMatch = (animeResults || []).some(r => r.title.trim().toLowerCase() === show.title.trim().toLowerCase());
+    }catch(e){
+      // Se la ricerca non va a buon fine (rete assente, ecc.), lascia la classificazione invariata
+      return;
+    }
+    if(show.isAnime !== isAnimeMatch){
+      show.isAnime = isAnimeMatch;
+      saveShows();
+      render();
+    }
   }
 
   function hashHue(str){
@@ -363,6 +382,7 @@
       show.favorite = !show.favorite;
       touchShow(show);
       saveShows(); render();
+      if(show.favorite) classifyForFavorites(show);
     };
     head.querySelector('[data-action="delete"]').onclick = () => {
       showConfirm(`Eliminare "${show.title}" dalla videoteca?`, () => {
