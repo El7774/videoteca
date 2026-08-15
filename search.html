@@ -270,13 +270,23 @@
       return;
     }
 
+    let isAnime = false;
+    let animeCheckFailed = false;
+    if (result.source === 'anime') {
+      isAnime = true;
+    } else {
+      const match = await detectIsAnime(details.title);
+      if (match === null) animeCheckFailed = true;
+      else isAnime = match;
+    }
+
     shows.unshift({
       id: uid(),
       title: details.title,
       type: details.type,
       rating: 0,
       favorite: false,
-      isAnime: result.source === 'anime' ? true : (await detectIsAnime(details.title)) === true,
+      isAnime,
       episodeRuntime: details.episodeRuntime || null,
       posterUrl: result.posterUrl || null,
       lastModifiedAt: Date.now(),
@@ -284,7 +294,11 @@
     });
     saveShows();
 
-    showNotice('"' + details.title + '" aggiunto alla videoteca.');
+    showNotice(
+      animeCheckFailed
+        ? '"' + details.title + '" aggiunto (non sono riuscito a verificare se è un anime, riprova tra poco o correggilo dai preferiti).'
+        : '"' + details.title + '" aggiunto alla videoteca.'
+    );
     addBtn.textContent = '✓ Aggiunto';
   }
 

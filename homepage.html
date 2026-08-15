@@ -689,7 +689,7 @@
       seeAll.textContent = 'Vedi tutti i risultati per "' + query + '" →';
       seeAll.onclick = () => goToSearchPage(query);
       onlineSearchLive.appendChild(seeAll);
-    }, 350);
+    }, 550);
   });
 
   function goToSearchPage(query){
@@ -731,7 +731,15 @@
 
     // Se il risultato cliccato viene già da Jikan (fonte anime) non serve verificare oltre;
     // altrimenti controlla comunque su Jikan, perché anche i risultati TMDB possono essere anime.
-    const isAnime = result.source === 'anime' ? true : (await detectIsAnime(details.title)) === true;
+    let isAnime = false;
+    let animeCheckFailed = false;
+    if (result.source === 'anime') {
+      isAnime = true;
+    } else {
+      const match = await detectIsAnime(details.title);
+      if (match === null) animeCheckFailed = true;
+      else isAnime = match;
+    }
 
     shows.unshift({
       id: uid(),
@@ -748,7 +756,11 @@
     saveShows();
     render();
 
-    showNotice('"' + details.title + '" aggiunto alla videoteca.');
+    showNotice(
+      animeCheckFailed
+        ? '"' + details.title + '" aggiunto (non sono riuscito a verificare se è un anime, riprova tra poco o correggilo dai preferiti).'
+        : '"' + details.title + '" aggiunto alla videoteca.'
+    );
     addBtn.textContent = '✓ Aggiunto';
   }
 
