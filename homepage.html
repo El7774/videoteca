@@ -95,7 +95,7 @@
 (function(){
   // ATTENZIONE: sostituisci questo indirizzo con l'URL del tuo server
   // dopo averlo pubblicato su Render (vedi la guida ricevuta in chat).
-  const API_BASE = 'https://videoteca-backend.onrender.com/api';
+  const API_BASE = 'https://TUO-BACKEND.onrender.com/api';
 
   function getToken(){
     return localStorage.getItem('videoteca-token') || sessionStorage.getItem('videoteca-token');
@@ -324,7 +324,7 @@
         <div class="title-row${isFilm ? ' no-expand' : ''}"${isFilm ? '' : ' data-action="toggle-expand" title="' + (expanded ? 'Comprimi' : 'Espandi') + ' stagioni ed episodi"'}>
           ${isFilm ? '' : '<span class="chevron">▾</span>'}
           <div>
-            <span class="type-badge ${show.type}">${show.type === 'serie' ? 'Serie TV' : 'Film'}</span>
+            <span class="type-badge ${show.isAnime ? 'anime' : show.type}">${show.isAnime ? 'Anime' : (show.type === 'serie' ? 'Serie TV' : 'Film')}</span>
             <h3>${escapeHtml(show.title)}</h3>
           </div>
         </div>

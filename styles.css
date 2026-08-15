@@ -268,6 +268,7 @@
   .type-badge{ font-family:'JetBrains Mono',monospace; font-size: 10px; letter-spacing: 1.5px; padding: 2px 8px; border-radius: 4px; display:inline-block; margin-bottom: 8px; text-transform: uppercase; }
   .type-badge.serie{ background: rgba(var(--teal-rgb),0.18); color: var(--teal); border: 1px solid rgba(var(--teal-rgb),0.4); }
   .type-badge.film{ background: rgba(var(--crimson-rgb),0.16); color: var(--crimson); border: 1px solid rgba(var(--crimson-rgb),0.4); }
+  .type-badge.anime{ background: rgba(var(--orange-rgb),0.16); color: var(--orange); border: 1px solid rgba(var(--orange-rgb),0.4); }
   .card h3{ font-family:'Bebas Neue',sans-serif; font-size: 26px; letter-spacing: 0.5px; margin: 0; line-height: 1.05; }
   .card-top-row{ display:flex; justify-content: space-between; align-items:flex-start; gap: 10px; }
   .card-top-actions{ display:flex; align-items:center; gap: 2px; flex-shrink:0; }
