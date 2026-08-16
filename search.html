@@ -248,7 +248,8 @@
       rating: 0,
       favorite: false,
       episodeRuntime: details.episodeRuntime || null,
-      posterUrl: result.posterUrl || null,
+      posterUrl: details.posterUrl || result.posterUrl || null,
+      backdropUrl: details.backdropUrl || null,
       lastModifiedAt: Date.now(),
       seasons: details.seasons
     });

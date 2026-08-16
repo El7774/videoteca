@@ -574,7 +574,8 @@
     const {total, watched} = computeProgress(current);
     const next = getNextEpisode(current);
 
-    hero.style.backgroundImage = current.posterUrl ? `url("${current.posterUrl}")` : 'none';
+    const heroImage = current.backdropUrl || current.posterUrl;
+    hero.style.backgroundImage = heroImage ? `url("${heroImage}")` : 'none';
     hero.innerHTML = `
       <div class="now-watching-hero-content">
         <div class="now-watching-year">In corso</div>
@@ -767,7 +768,8 @@
       rating: 0,
       favorite: false,
       episodeRuntime: details.episodeRuntime || null,
-      posterUrl: result.posterUrl || null,
+      posterUrl: details.posterUrl || result.posterUrl || null,
+      backdropUrl: details.backdropUrl || null,
       lastModifiedAt: Date.now(),
       seasons: details.seasons
     });
