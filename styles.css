@@ -161,7 +161,7 @@
     flex: 0 0 520px;
     max-width: 520px;
     width: 100%;
-    aspect-ratio: 24 / 10;
+    aspect-ratio: 40 / 25;
     border-radius: calc(var(--radius) + 4px);
     overflow: hidden;
     border: 1px solid var(--line);
