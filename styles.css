@@ -158,8 +158,8 @@
   .now-watching-section{ display:none; gap: 24px; margin-bottom: 48px; align-items: flex-start; }
   .now-watching-hero{
     position: relative;
-    flex: 0 0 480px;
-    max-width: 480px;
+    flex: 0 0 600px;
+    max-width: 600px;
     width: 100%;
     aspect-ratio: 3 / 2;
     border-radius: calc(var(--radius) + 4px);
