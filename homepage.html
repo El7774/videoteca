@@ -558,7 +558,14 @@
     const hero = document.getElementById('nowWatchingHero');
     const items = document.getElementById('nowWatchingItems');
 
-    const watching = filterByMedia(shows, mediaFilter)
+    if(mediaFilter !== 'all'){
+      section.style.display = 'none';
+      hero.innerHTML = '';
+      items.innerHTML = '';
+      return;
+    }
+
+    const watching = shows
       .filter(s => s.type === 'serie' && computeStatus(s) === 'watching')
       .sort((a, b) => (b.lastModifiedAt || 0) - (a.lastModifiedAt || 0));
 

@@ -158,8 +158,8 @@
   .now-watching-section{ display:none; gap: 24px; margin-bottom: 48px; align-items: flex-start; }
   .now-watching-hero{
     position: relative;
-    flex: 0 0 480px;
-    max-width: 480px;
+    flex: 0 0 520px;
+    max-width: 520px;
     width: 100%;
     aspect-ratio: 3 / 2;
     border-radius: calc(var(--radius) + 4px);
@@ -199,7 +199,7 @@
 
   @media (max-width: 760px){
     .now-watching-section{ flex-direction: column; }
-    .now-watching-hero{ flex-basis: auto; max-width: 100%; aspect-ratio: 16 / 9; }
+    .now-watching-hero{ flex-basis: auto; max-width: 100%; aspect-ratio: 16 / 10; }
     .now-watching-side{ max-width: 100%; }
   }
 
