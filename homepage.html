@@ -62,6 +62,14 @@
 
 <div class="wrap">
 
+  <div class="now-watching-section" id="nowWatchingSection">
+    <div class="now-watching-hero" id="nowWatchingHero"></div>
+    <div class="now-watching-side">
+      <h3 class="now-watching-side-title">In corso</h3>
+      <div class="now-watching-items" id="nowWatchingItems"></div>
+    </div>
+  </div>
+
   <div class="favorites-section" id="favoritesSection">
     <div class="favorites-header" id="favoritesHeader">
       <h2>Preferiti</h2>
@@ -247,6 +255,17 @@
     const last = show.lastModifiedAt || 0;
     if(Date.now() - last > DROP_THRESHOLD_MS) return 'dropped';
     return 'watching';
+  }
+
+  // Trova il primo episodio non ancora segnato come visto, per sapere "a che punto" si è rimasti.
+  function getNextEpisode(show){
+    for(let si = 0; si < show.seasons.length; si++){
+      const se = show.seasons[si];
+      for(let ei = 0; ei < se.watched.length; ei++){
+        if(!se.watched[ei]) return { season: si + 1, episode: ei + 1 };
+      }
+    }
+    return null;
   }
 
   function filterByMedia(list, media){
@@ -532,6 +551,65 @@
     return card;
   }
 
+  // Mostra in grande la serie "in corso" più recente (S{n} · E{n} da vedere),
+  // e sotto forma di lista compatta le altre serie ancora in corso.
+  function renderNowWatching(){
+    const section = document.getElementById('nowWatchingSection');
+    const hero = document.getElementById('nowWatchingHero');
+    const items = document.getElementById('nowWatchingItems');
+
+    const watching = filterByMedia(shows, mediaFilter)
+      .filter(s => s.type === 'serie' && computeStatus(s) === 'watching')
+      .sort((a, b) => (b.lastModifiedAt || 0) - (a.lastModifiedAt || 0));
+
+    if(watching.length === 0){
+      section.style.display = 'none';
+      hero.innerHTML = '';
+      items.innerHTML = '';
+      return;
+    }
+    section.style.display = 'flex';
+
+    const [current, ...rest] = watching;
+    const {total, watched} = computeProgress(current);
+    const next = getNextEpisode(current);
+
+    hero.style.backgroundImage = current.posterUrl ? `url("${current.posterUrl}")` : 'none';
+    hero.innerHTML = `
+      <div class="now-watching-hero-content">
+        <div class="now-watching-year">In corso</div>
+        <h2>${escapeHtml(current.title)}</h2>
+        <div class="now-watching-hero-meta">
+          <span class="status-badge watching">${STATUS_LABELS.watching}</span>
+          ${next ? `<span class="now-watching-progress">Stagione ${next.season} · Episodio ${next.episode}</span>` : ''}
+          <span class="now-watching-progress">${watched}/${total} episodi</span>
+          ${current.episodeRuntime ? `<span class="runtime-badge">⏱ ${current.episodeRuntime} min/ep</span>` : ''}
+          ${current.rating > 0 ? `<div class="stars">${[1,2,3,4,5].map(n => `<span class="star ${current.rating>=n?'on':''}">★</span>`).join('')}</div>` : ''}
+        </div>
+      </div>
+    `;
+
+    if(rest.length === 0){
+      items.innerHTML = '<div class="now-watching-empty-side">Nessun\'altra serie in corso al momento.</div>';
+    } else {
+      items.innerHTML = '';
+      rest.slice(0, 4).forEach(show => {
+        const {total: t, watched: w} = computeProgress(show);
+        const n = getNextEpisode(show);
+        const row = document.createElement('div');
+        row.className = 'now-watching-item';
+        row.innerHTML = `
+          <div class="now-watching-item-poster">${show.posterUrl ? `<img src="${show.posterUrl}" alt="" loading="lazy">` : ''}</div>
+          <div class="now-watching-item-info">
+            <div class="now-watching-item-title">${escapeHtml(show.title)}</div>
+            <div class="now-watching-item-progress">${n ? `S${n.season} · E${n.episode}` : ''}${n ? ' · ' : ''}${w}/${t}</div>
+          </div>
+        `;
+        items.appendChild(row);
+      });
+    }
+  }
+
   function renderFavorites(){
     const section = document.getElementById('favoritesSection');
     const carousel = document.getElementById('favoritesGrid');
@@ -558,6 +636,7 @@
   }
 
   function render(){
+    renderNowWatching();
     renderFavorites();
     renderGrid();
   }
