@@ -102,30 +102,6 @@
     return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
   }
 
-  // Interroga l'API anime (Jikan) per capire se un titolo è un anime, così finisce
-  // nella sezione giusta indipendentemente da quale risultato di ricerca (TMDB o Jikan)
-  // è stato cliccato per aggiungerlo. Confronto tollerante: ignora maiuscole/minuscole,
-  // punteggiatura e accenti, e considera corrispondenza anche come prefisso
-  // (es. "Dragon Ball Z" deve corrispondere anche a "Dragon Ball Z: ...")
-  function normalizeTitleForMatch(str){
-    return (str || '')
-      .toLowerCase()
-      .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, ' ')
-      .trim();
-  }
-  async function detectIsAnime(title){
-    try{
-      const animeResults = await apiFetch('/catalog/search-anime?query=' + encodeURIComponent(title));
-      const target = normalizeTitleForMatch(title);
-      return (animeResults || []).some(r => {
-        const candidate = normalizeTitleForMatch(r.title);
-        return candidate === target || candidate.startsWith(target + ' ') || target.startsWith(candidate + ' ');
-      });
-    }catch(e){
-      return null;
-    }
-  }
   function showNotice(message){
     const t = document.createElement('div');
     t.className = 'notice-toast';
@@ -212,37 +188,34 @@
       });
   }
 
-  // ---------- Ricerca (TMDB + Jikan) ----------
+  // ---------- Ricerca (TMDB) ----------
   const form = document.getElementById('onlineSearchForm');
   const input = document.getElementById('onlineSearchInput');
   const grid = document.getElementById('searchResultsGrid');
 
-  function mediaTypeLabel(mediaType, source){
-    const base = mediaType === 'movie' ? 'Film' : 'Serie TV';
-    return source === 'anime' ? 'Anime · ' + base : base;
+  function mediaTypeLabel(mediaType){
+    return mediaType === 'movie' ? 'Film' : 'Serie TV';
   }
 
   async function fetchCombinedResults(query){
-    const [tmdbResult, animeResult] = await Promise.allSettled([
-      apiFetch('/catalog/search?query=' + encodeURIComponent(query)),
-      apiFetch('/catalog/search-anime?query=' + encodeURIComponent(query))
-    ]);
-    if(tmdbResult.status === 'rejected' && tmdbResult.reason && tmdbResult.reason.status === 401){ redirectToLogin(); throw tmdbResult.reason; }
-    if(animeResult.status === 'rejected' && animeResult.reason && animeResult.reason.status === 401){ redirectToLogin(); throw animeResult.reason; }
-
-    const tmdbList = (tmdbResult.status === 'fulfilled' ? tmdbResult.value : []).map(r => Object.assign({}, r, { source: 'tmdb' }));
-    const animeList = (animeResult.status === 'fulfilled' ? animeResult.value : []).map(r => Object.assign({}, r, { source: 'anime' }));
-    return tmdbList.concat(animeList);
+    let tmdbList;
+    try{
+      tmdbList = await apiFetch('/catalog/search?query=' + encodeURIComponent(query));
+    }catch(e){
+      if(e.status === 401){ redirectToLogin(); }
+      throw e;
+    }
+    return tmdbList || [];
   }
 
   function buildResultRow(r){
     const item = document.createElement('div');
     item.className = 'online-search-result';
     item.innerHTML = `
-      <div class="online-search-poster">${r.posterUrl ? `<img src="${r.posterUrl}" alt="">` : (r.source === 'anime' ? '🎌' : '🎬')}</div>
+      <div class="online-search-poster">${r.posterUrl ? `<img src="${r.posterUrl}" alt="">` : '🎬'}</div>
       <div class="online-search-info">
         <div class="online-search-title">${escapeHtml(r.title)}${r.year ? ' <span class="online-search-year">(' + escapeHtml(r.year) + ')</span>' : ''}</div>
-        <span class="type-badge ${r.mediaType === 'movie' ? 'film' : 'serie'}">${mediaTypeLabel(r.mediaType, r.source)}</span>
+        <span class="type-badge ${r.mediaType === 'movie' ? 'film' : 'serie'}">${mediaTypeLabel(r.mediaType)}</span>
       </div>
       <button type="button" class="btn primary online-search-add">+ Aggiungi</button>
     `;
@@ -255,9 +228,7 @@
     addBtn.disabled = true;
     addBtn.textContent = 'Attendere…';
 
-    const detailsPath = result.source === 'anime'
-      ? '/catalog/details-anime?id=' + result.malId
-      : '/catalog/details?id=' + result.tmdbId + '&type=' + result.mediaType;
+    const detailsPath = '/catalog/details?id=' + result.tmdbId + '&type=' + result.mediaType;
 
     let details;
     try{
@@ -270,23 +241,12 @@
       return;
     }
 
-    let isAnime = false;
-    let animeCheckFailed = false;
-    if (result.source === 'anime') {
-      isAnime = true;
-    } else {
-      const match = await detectIsAnime(details.title);
-      if (match === null) animeCheckFailed = true;
-      else isAnime = match;
-    }
-
     shows.unshift({
       id: uid(),
       title: details.title,
       type: details.type,
       rating: 0,
       favorite: false,
-      isAnime,
       episodeRuntime: details.episodeRuntime || null,
       posterUrl: result.posterUrl || null,
       lastModifiedAt: Date.now(),
@@ -294,11 +254,7 @@
     });
     saveShows();
 
-    showNotice(
-      animeCheckFailed
-        ? '"' + details.title + '" aggiunto (non sono riuscito a verificare se è un anime, riprova tra poco o correggilo dai preferiti).'
-        : '"' + details.title + '" aggiunto alla videoteca.'
-    );
+    showNotice('"' + details.title + '" aggiunto alla videoteca.');
     addBtn.textContent = '✓ Aggiunto';
   }
 
