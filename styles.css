@@ -159,7 +159,7 @@
   .now-watching-hero{
     position: relative;
     flex: 0 0 480px;
-    max-width: 1000px;
+    max-width: 480px;
     width: 100%;
     aspect-ratio: 3 / 2;
     border-radius: calc(var(--radius) + 4px);
