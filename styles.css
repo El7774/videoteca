@@ -179,6 +179,8 @@
   .now-watching-hero-content{ position:relative; z-index:1; padding: 24px 28px; width:100%; }
   .now-watching-year{ font-family:'JetBrains Mono',monospace; font-size: 12px; letter-spacing: 1px; color: rgba(255,255,255,0.75); }
   .now-watching-hero-content h2{ font-family:'Bebas Neue',sans-serif; font-size: 34px; letter-spacing: 0.5px; color:#fff; margin: 2px 0 10px; line-height: 1.05; text-shadow: 0 2px 14px rgba(0,0,0,0.5); }
+  .now-watching-episode-subtitle{ font-family:'Inter',sans-serif; font-size: 14px; font-style: italic; color: rgba(255,255,255,0.85); margin: -4px 0 10px; text-shadow: 0 1px 8px rgba(0,0,0,0.5); }
+  .now-watching-episode-subtitle:empty{ display:none; }
   .now-watching-hero-meta{ display:flex; align-items:center; gap: 10px; flex-wrap: wrap; }
   .now-watching-hero-meta .status-badge{ background: rgba(0,0,0,0.4); }
   .now-watching-hero-meta .runtime-badge{ background: rgba(0,0,0,0.4); color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.3); }

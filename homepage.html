@@ -15,7 +15,7 @@
     if(theme) document.documentElement.setAttribute('data-theme', theme);
   })();
 </script>
-<link rel="stylesheet" href="styles.css?v=3">
+<link rel="stylesheet" href="styles.css?v=4">
 
 </head>
 <body>
@@ -156,6 +156,32 @@
         return null;
       });
     seasonEpisodeNamesCache.set(key, promise);
+    return promise;
+  }
+
+  // Per i titoli aggiunti prima che salvassimo il tmdbId, lo recupera cercando
+  // il titolo su TMDB e lo salva sulla scheda per non doverlo rifare in futuro.
+  const tmdbIdResolveCache = new Map(); // titolo -> Promise<tmdbId|null>, evita ricerche duplicate in parallelo
+  async function resolveTmdbId(show){
+    if(show.tmdbId) return show.tmdbId;
+    const key = show.title.trim().toLowerCase();
+    if(tmdbIdResolveCache.has(key)) return tmdbIdResolveCache.get(key);
+
+    const promise = apiFetch('/catalog/search?query=' + encodeURIComponent(show.title))
+      .then(results => {
+        const tvResults = (results || []).filter(r => r.mediaType === 'tv');
+        if(tvResults.length === 0) return null;
+        const exact = tvResults.find(r => r.title.trim().toLowerCase() === key);
+        const chosen = exact || tvResults[0];
+        show.tmdbId = chosen.tmdbId;
+        saveShows();
+        return chosen.tmdbId;
+      })
+      .catch(() => {
+        tmdbIdResolveCache.delete(key);
+        return null;
+      });
+    tmdbIdResolveCache.set(key, promise);
     return promise;
   }
 
@@ -633,6 +659,7 @@
       <div class="now-watching-hero-content">
         <div class="now-watching-year">In corso</div>
         <h2>${escapeHtml(current.title)}</h2>
+        <div class="now-watching-episode-subtitle" id="nowWatchingHeroEpisodeName"></div>
         <div class="now-watching-hero-meta">
           <span class="status-badge watching">${STATUS_LABELS.watching}</span>
           ${next ? `<span class="now-watching-progress">Stagione ${next.season} · Episodio ${next.episode}</span>` : ''}
@@ -666,11 +693,11 @@
 
     // ---- Episodi successivi (della stagione della serie mostrata in grande) ----
     const upcoming = getUpcomingEpisodesInSeason(current, 6);
+    const labelByEpisode = {};
     if(!next || upcoming.episodes.length === 0){
       episodesEl.innerHTML = '<div class="now-watching-empty-side">Nessun altro episodio da vedere in questa stagione.</div>';
     } else {
       episodesEl.innerHTML = '';
-      const labelByEpisode = {};
       upcoming.episodes.forEach(epNumber => {
         const row = document.createElement('div');
         row.className = 'now-watching-episode';
@@ -688,20 +715,27 @@
         more.textContent = `+${upcoming.remaining} altri episodi in questa stagione`;
         episodesEl.appendChild(more);
       }
+    }
 
-      // Sostituisce "Episodio N" con il vero titolo dell'episodio, appena disponibile da TMDB.
-      // Se il titolo non c'è (serie aggiunta prima di questa funzione, o titolo mancante su TMDB),
-      // resta l'etichetta generica senza rompere nulla.
-      if(current.tmdbId && upcoming.season){
-        getSeasonEpisodeNames(current.tmdbId, upcoming.season).then(names => {
+    // Sostituisce "Episodio N" con il vero titolo, sia nella preview grande (episodio in corso)
+    // sia nella lista "Episodi successivi", appena disponibile da TMDB. Se la serie non ha
+    // ancora un tmdbId salvato (aggiunta prima di questa funzione), prova prima a recuperarlo
+    // cercando il titolo; se anche questo fallisce, o TMDB non ha il nome, restano le etichette
+    // generiche senza rompere nulla.
+    if(next){
+      resolveTmdbId(current).then(tvId => {
+        if(!tvId) return;
+        return getSeasonEpisodeNames(tvId, next.season).then(names => {
           if(!names) return;
-          upcoming.episodes.forEach(epNumber => {
-            const label = labelByEpisode[epNumber];
+          const heroEpisodeName = names[next.episode];
+          const heroSubtitleEl = document.getElementById('nowWatchingHeroEpisodeName');
+          if(heroSubtitleEl && heroEpisodeName) heroSubtitleEl.textContent = heroEpisodeName;
+          Object.keys(labelByEpisode).forEach(epNumber => {
             const name = names[epNumber];
-            if(label && name) label.textContent = name;
+            if(name) labelByEpisode[epNumber].textContent = name;
           });
         });
-      }
+      });
     }
   }
 
