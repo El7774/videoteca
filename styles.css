@@ -186,21 +186,32 @@
   .now-watching-hero-meta .stars{ background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.3); border-radius: 999px; padding: 4px 9px; }
   .now-watching-hero-empty{ position:relative; z-index:1; padding: 24px 28px; color: var(--muted); font-family:'JetBrains Mono',monospace; font-size: 13px; }
 
-  .now-watching-side{ flex: 1 1 260px; max-width: 400px; min-width: 220px; display:flex; flex-direction:column; }
-  .now-watching-side-title{ font-family:'Inter',sans-serif; font-weight:700; font-size: 15px; color: var(--text); margin: 0 0 12px; }
-  .now-watching-items{ display:flex; flex-direction:column; gap: 10px; overflow-y:auto; }
+  .now-watching-side{ flex: 1 1 260px; max-width: 560px; min-width: 220px; display:flex; gap: 16px; height: 347px; }
+  .now-watching-panel{ flex: 1 1 0; min-width: 0; display:flex; flex-direction:column; }
+  .now-watching-side-title{ font-family:'Inter',sans-serif; font-weight:700; font-size: 14px; color: var(--text); margin: 0 0 12px; }
+  .now-watching-items, .now-watching-episodes{ display:flex; flex-direction:column; gap: 10px; overflow-y:auto; }
   .now-watching-item{ display:flex; align-items:center; gap: 12px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
   .now-watching-item-poster{ flex: 0 0 44px; width: 44px; height: 62px; border-radius: 6px; overflow:hidden; background-size:cover; background-position:center; }
   .now-watching-item-poster img{ width:100%; height:100%; object-fit:cover; display:block; }
   .now-watching-item-info{ min-width:0; }
   .now-watching-item-title{ font-family:'Inter',sans-serif; font-weight:600; font-size: 13px; color: var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .now-watching-item-progress{ font-family:'JetBrains Mono',monospace; font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .now-watching-episode{ display:flex; align-items:center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  .now-watching-episode-num{ flex: 0 0 auto; font-family:'JetBrains Mono',monospace; font-size: 11px; font-weight:700; color: var(--orange); background: rgba(var(--orange-rgb),0.14); border: 1px solid rgba(var(--orange-rgb),0.35); border-radius: 999px; padding: 2px 8px; }
+  .now-watching-episode-label{ flex: 1 1 auto; font-family:'Inter',sans-serif; font-size: 13px; color: var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .now-watching-episode-runtime{ flex: 0 0 auto; font-family:'JetBrains Mono',monospace; font-size: 11px; color: var(--muted); }
+  .now-watching-episode-more{ font-family:'JetBrains Mono',monospace; font-size: 11px; color: var(--muted); padding: 4px 2px; }
   .now-watching-empty-side{ color: var(--muted); font-family:'JetBrains Mono',monospace; font-size: 12px; }
 
   @media (max-width: 760px){
     .now-watching-section{ flex-direction: column; }
     .now-watching-hero{ flex-basis: auto; max-width: 100%; width: 100%; height: 240px; }
-    .now-watching-side{ max-width: 100%; }
+    .now-watching-side{ max-width: 100%; height: auto; flex-direction: column; }
+  }
+
+  @media (max-width: 560px){
+    .now-watching-side{ flex-direction: column; height: auto; }
+    .now-watching-items, .now-watching-episodes{ max-height: 220px; }
   }
 
   .favorites-section{ margin-bottom: 48px; padding: 20px 20px 24px; border: 1px solid var(--line); border-radius: calc(var(--radius) + 4px); background: var(--panel); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }

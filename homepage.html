@@ -15,7 +15,7 @@
     if(theme) document.documentElement.setAttribute('data-theme', theme);
   })();
 </script>
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=2">
 
 </head>
 <body>
@@ -65,8 +65,14 @@
   <div class="now-watching-section" id="nowWatchingSection">
     <div class="now-watching-hero" id="nowWatchingHero"></div>
     <div class="now-watching-side">
-      <h3 class="now-watching-side-title">In corso</h3>
-      <div class="now-watching-items" id="nowWatchingItems"></div>
+      <div class="now-watching-panel">
+        <h3 class="now-watching-side-title">Episodi successivi</h3>
+        <div class="now-watching-episodes" id="nowWatchingEpisodes"></div>
+      </div>
+      <div class="now-watching-panel">
+        <h3 class="now-watching-side-title">In corso</h3>
+        <div class="now-watching-items" id="nowWatchingItems"></div>
+      </div>
     </div>
   </div>
 
@@ -551,27 +557,49 @@
     return card;
   }
 
-  // Mostra in grande la serie "in corso" più recente (S{n} · E{n} da vedere),
-  // e sotto forma di lista compatta le altre serie ancora in corso.
+  // Trova, all'interno della stagione che si sta guardando, gli episodi ancora da vedere
+  // dopo quello corrente (fino alla fine della stagione, con un tetto per non allungarsi
+  // all'infinito su stagioni molto lunghe).
+  function getUpcomingEpisodesInSeason(show, limit){
+    const next = getNextEpisode(show);
+    if(!next) return { season: null, episodes: [], remaining: 0 };
+    const season = show.seasons[next.season - 1];
+    const episodeNumbers = [];
+    for(let ei = next.episode; ei < season.watched.length; ei++){
+      episodeNumbers.push(ei + 1); // il prossimo da vedere (next.episode) è già mostrato nell'hero
+    }
+    return {
+      season: next.season,
+      episodes: episodeNumbers.slice(0, limit),
+      remaining: Math.max(0, episodeNumbers.length - limit)
+    };
+  }
+
+  // Mostra in grande la serie "in corso" con il voto più alto (S{n} · E{n} da vedere),
+  // di fianco gli episodi successivi della stagione che si sta guardando e, ancora
+  // di fianco, la lista compatta delle altre serie in corso.
   function renderNowWatching(){
     const section = document.getElementById('nowWatchingSection');
     const hero = document.getElementById('nowWatchingHero');
+    const episodesEl = document.getElementById('nowWatchingEpisodes');
     const items = document.getElementById('nowWatchingItems');
 
     if(mediaFilter !== 'all'){
       section.style.display = 'none';
       hero.innerHTML = '';
+      episodesEl.innerHTML = '';
       items.innerHTML = '';
       return;
     }
 
     const watching = shows
       .filter(s => s.type === 'serie' && computeStatus(s) === 'watching')
-      .sort((a, b) => (b.lastModifiedAt || 0) - (a.lastModifiedAt || 0));
+      .sort((a, b) => (b.rating || 0) - (a.rating || 0) || (b.lastModifiedAt || 0) - (a.lastModifiedAt || 0));
 
     if(watching.length === 0){
       section.style.display = 'none';
       hero.innerHTML = '';
+      episodesEl.innerHTML = '';
       items.innerHTML = '';
       return;
     }
@@ -597,6 +625,31 @@
       </div>
     `;
 
+    // ---- Episodi successivi (della stagione della serie mostrata in grande) ----
+    const upcoming = getUpcomingEpisodesInSeason(current, 6);
+    if(!next || upcoming.episodes.length === 0){
+      episodesEl.innerHTML = '<div class="now-watching-empty-side">Nessun altro episodio da vedere in questa stagione.</div>';
+    } else {
+      episodesEl.innerHTML = '';
+      upcoming.episodes.forEach(epNumber => {
+        const row = document.createElement('div');
+        row.className = 'now-watching-episode';
+        row.innerHTML = `
+          <span class="now-watching-episode-num">E${epNumber}</span>
+          <span class="now-watching-episode-label">Episodio ${epNumber}</span>
+          ${current.episodeRuntime ? `<span class="now-watching-episode-runtime">${current.episodeRuntime} min</span>` : ''}
+        `;
+        episodesEl.appendChild(row);
+      });
+      if(upcoming.remaining > 0){
+        const more = document.createElement('div');
+        more.className = 'now-watching-episode-more';
+        more.textContent = `+${upcoming.remaining} altri episodi in questa stagione`;
+        episodesEl.appendChild(more);
+      }
+    }
+
+    // ---- In corso (le altre serie, spostata di fianco a "Episodi successivi") ----
     if(rest.length === 0){
       items.innerHTML = '<div class="now-watching-empty-side">Nessun\'altra serie in corso al momento.</div>';
     } else {
