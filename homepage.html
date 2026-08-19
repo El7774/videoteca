@@ -15,7 +15,7 @@
     if(theme) document.documentElement.setAttribute('data-theme', theme);
   })();
 </script>
-<link rel="stylesheet" href="styles.css?v=2">
+<link rel="stylesheet" href="styles.css?v=3">
 
 </head>
 <body>
@@ -140,6 +140,24 @@
   let shows = [];
   let mediaFilter = 'all';
   const toggledIds = new Set();
+  const seasonEpisodeNamesCache = new Map(); // 'tvId:season' -> Promise<{[episodeNumber]: name}>
+
+  function getSeasonEpisodeNames(tvId, season){
+    const key = tvId + ':' + season;
+    if(seasonEpisodeNamesCache.has(key)) return seasonEpisodeNamesCache.get(key);
+    const promise = apiFetch('/catalog/episodes?tvId=' + encodeURIComponent(tvId) + '&season=' + season)
+      .then(list => {
+        const map = {};
+        (list || []).forEach(e => { if(e && e.episodeNumber) map[e.episodeNumber] = e.name; });
+        return map;
+      })
+      .catch(() => {
+        seasonEpisodeNamesCache.delete(key); // fallita: non tenere in cache un fallimento, riprova al prossimo render
+        return null;
+      });
+    seasonEpisodeNamesCache.set(key, promise);
+    return promise;
+  }
 
   function isCardExpanded(show){
     const defaultExpanded = false;
@@ -625,31 +643,7 @@
       </div>
     `;
 
-    // ---- Episodi successivi (della stagione della serie mostrata in grande) ----
-    const upcoming = getUpcomingEpisodesInSeason(current, 6);
-    if(!next || upcoming.episodes.length === 0){
-      episodesEl.innerHTML = '<div class="now-watching-empty-side">Nessun altro episodio da vedere in questa stagione.</div>';
-    } else {
-      episodesEl.innerHTML = '';
-      upcoming.episodes.forEach(epNumber => {
-        const row = document.createElement('div');
-        row.className = 'now-watching-episode';
-        row.innerHTML = `
-          <span class="now-watching-episode-num">E${epNumber}</span>
-          <span class="now-watching-episode-label">Episodio ${epNumber}</span>
-          ${current.episodeRuntime ? `<span class="now-watching-episode-runtime">${current.episodeRuntime} min</span>` : ''}
-        `;
-        episodesEl.appendChild(row);
-      });
-      if(upcoming.remaining > 0){
-        const more = document.createElement('div');
-        more.className = 'now-watching-episode-more';
-        more.textContent = `+${upcoming.remaining} altri episodi in questa stagione`;
-        episodesEl.appendChild(more);
-      }
-    }
-
-    // ---- In corso (le altre serie, spostata di fianco a "Episodi successivi") ----
+    // ---- In corso (le altre serie, di fianco a "Episodi successivi") ----
     if(rest.length === 0){
       items.innerHTML = '<div class="now-watching-empty-side">Nessun\'altra serie in corso al momento.</div>';
     } else {
@@ -668,6 +662,46 @@
         `;
         items.appendChild(row);
       });
+    }
+
+    // ---- Episodi successivi (della stagione della serie mostrata in grande) ----
+    const upcoming = getUpcomingEpisodesInSeason(current, 6);
+    if(!next || upcoming.episodes.length === 0){
+      episodesEl.innerHTML = '<div class="now-watching-empty-side">Nessun altro episodio da vedere in questa stagione.</div>';
+    } else {
+      episodesEl.innerHTML = '';
+      const labelByEpisode = {};
+      upcoming.episodes.forEach(epNumber => {
+        const row = document.createElement('div');
+        row.className = 'now-watching-episode';
+        row.innerHTML = `
+          <span class="now-watching-episode-num">E${epNumber}</span>
+          <span class="now-watching-episode-label">Episodio ${epNumber}</span>
+          ${current.episodeRuntime ? `<span class="now-watching-episode-runtime">${current.episodeRuntime} min</span>` : ''}
+        `;
+        episodesEl.appendChild(row);
+        labelByEpisode[epNumber] = row.querySelector('.now-watching-episode-label');
+      });
+      if(upcoming.remaining > 0){
+        const more = document.createElement('div');
+        more.className = 'now-watching-episode-more';
+        more.textContent = `+${upcoming.remaining} altri episodi in questa stagione`;
+        episodesEl.appendChild(more);
+      }
+
+      // Sostituisce "Episodio N" con il vero titolo dell'episodio, appena disponibile da TMDB.
+      // Se il titolo non c'è (serie aggiunta prima di questa funzione, o titolo mancante su TMDB),
+      // resta l'etichetta generica senza rompere nulla.
+      if(current.tmdbId && upcoming.season){
+        getSeasonEpisodeNames(current.tmdbId, upcoming.season).then(names => {
+          if(!names) return;
+          upcoming.episodes.forEach(epNumber => {
+            const label = labelByEpisode[epNumber];
+            const name = names[epNumber];
+            if(label && name) label.textContent = name;
+          });
+        });
+      }
     }
   }
 
@@ -830,6 +864,7 @@
       episodeRuntime: details.episodeRuntime || null,
       posterUrl: details.posterUrl || result.posterUrl || null,
       backdropUrl: details.backdropUrl || null,
+      tmdbId: result.mediaType === 'tv' ? result.tmdbId : null,
       lastModifiedAt: Date.now(),
       seasons: details.seasons
     });
