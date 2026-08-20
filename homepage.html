@@ -15,7 +15,7 @@
     if(theme) document.documentElement.setAttribute('data-theme', theme);
   })();
 </script>
-<link rel="stylesheet" href="styles.css?v=4">
+<link rel="stylesheet" href="styles.css?v=5">
 
 </head>
 <body>
@@ -86,6 +86,16 @@
       </div>
     </div>
     <div class="favorites-carousel" id="favoritesGrid"></div>
+  </div>
+
+  <div class="trending-section" id="trendingTvSection">
+    <div class="trending-header"><h2>Serie TV del momento</h2></div>
+    <div class="trending-carousel" id="trendingTvCarousel"></div>
+  </div>
+
+  <div class="trending-section" id="trendingMoviesSection">
+    <div class="trending-header"><h2>Film del momento</h2></div>
+    <div class="trending-carousel" id="trendingMoviesCarousel"></div>
   </div>
 
   <div class="grid" id="grid"></div>
@@ -183,6 +193,61 @@
       });
     tmdbIdResolveCache.set(key, promise);
     return promise;
+  }
+
+  // ---- "Del momento" (serie TV e film di tendenza da TMDB, non legati alla collezione) ----
+  const trendingCache = {}; // 'tv'|'movie' -> Promise<risultati|null>, una sola richiesta per sessione
+
+  function fetchTrending(type){
+    if(trendingCache[type]) return trendingCache[type];
+    const promise = apiFetch('/catalog/trending?type=' + type)
+      .catch(() => {
+        delete trendingCache[type]; // fallita: riprova al prossimo render invece di restare bloccati su null
+        return null;
+      });
+    trendingCache[type] = promise;
+    return promise;
+  }
+
+  function buildTrendingCard(item){
+    const card = document.createElement('div');
+    card.className = 'trending-card';
+    card.innerHTML = `
+      <div class="trending-poster">${item.posterUrl ? `<img src="${item.posterUrl}" alt="" loading="lazy">` : '🎬'}</div>
+      ${item.rating ? `<span class="trending-rating">★ ${item.rating}</span>` : ''}
+      <div class="trending-title">${escapeHtml(item.title)}${item.year ? ` <span class="trending-year">(${escapeHtml(item.year)})</span>` : ''}</div>
+    `;
+    return card;
+  }
+
+  const trendingRendered = { tv: false, movie: false }; // già costruito in DOM: non ripetere il fetch/render ad ogni render()
+
+  function renderTrendingType(type, section, carousel){
+    if(trendingRendered[type]){
+      section.style.display = '';
+      return;
+    }
+    fetchTrending(type).then(results => {
+      if(!results || results.length === 0){ section.style.display = 'none'; return; }
+      trendingRendered[type] = true;
+      section.style.display = '';
+      carousel.innerHTML = '';
+      results.forEach(item => carousel.appendChild(buildTrendingCard(item)));
+    });
+  }
+
+  function renderTrending(){
+    const tvSection = document.getElementById('trendingTvSection');
+    const moviesSection = document.getElementById('trendingMoviesSection');
+
+    if(mediaFilter !== 'all'){
+      tvSection.style.display = 'none';
+      moviesSection.style.display = 'none';
+      return;
+    }
+
+    renderTrendingType('tv', tvSection, document.getElementById('trendingTvCarousel'));
+    renderTrendingType('movie', moviesSection, document.getElementById('trendingMoviesCarousel'));
   }
 
   function isCardExpanded(show){
@@ -562,6 +627,13 @@
     const grid = document.getElementById('grid');
     grid.innerHTML = '';
     grid.className = 'grid';
+
+    if(mediaFilter === 'all'){
+      grid.style.display = 'none';
+      return;
+    }
+    grid.style.display = '';
+
     const list = filterByMedia(shows, mediaFilter);
 
     if(list.length === 0){
@@ -745,16 +817,15 @@
     const countEl = document.getElementById('favoritesCount');
     const favorites = filterByMedia(shows.filter(s => s.favorite), mediaFilter);
 
-    countEl.textContent = favorites.length;
-    carousel.innerHTML = '';
-
     if(favorites.length === 0){
-      section.classList.add('empty-state');
-      carousel.innerHTML = '<div class="empty" style="width:100%;"><h2>Nessun preferito</h2><p>Clicca sul cuore ♡ su un titolo per aggiungerlo qui.</p></div>';
+      section.style.display = 'none';
+      carousel.innerHTML = '';
       return;
     }
 
-    section.classList.remove('empty-state');
+    section.style.display = 'block';
+    countEl.textContent = favorites.length;
+    carousel.innerHTML = '';
     favorites.forEach(show => carousel.appendChild(buildFavoriteCard(show)));
   }
 
@@ -767,6 +838,7 @@
   function render(){
     renderNowWatching();
     renderFavorites();
+    renderTrending();
     renderGrid();
   }
 
