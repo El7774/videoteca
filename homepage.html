@@ -225,13 +225,13 @@
 
   function renderTrendingType(type, section, carousel){
     if(trendingRendered[type]){
-      section.style.display = '';
+      section.style.display = 'block';
       return;
     }
     fetchTrending(type).then(results => {
       if(!results || results.length === 0){ section.style.display = 'none'; return; }
       trendingRendered[type] = true;
-      section.style.display = '';
+      section.style.display = 'block';
       carousel.innerHTML = '';
       results.forEach(item => carousel.appendChild(buildTrendingCard(item)));
     });
