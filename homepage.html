@@ -201,7 +201,8 @@
   function fetchTrending(type){
     if(trendingCache[type]) return trendingCache[type];
     const promise = apiFetch('/catalog/trending?type=' + type)
-      .catch(() => {
+      .catch((err) => {
+        console.error('Errore nel caricamento dei contenuti di tendenza (' + type + '): [' + (err && err.status) + '] ' + (err && err.message));
         delete trendingCache[type]; // fallita: riprova al prossimo render invece di restare bloccati su null
         return null;
       });
