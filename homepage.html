@@ -450,7 +450,6 @@
               <button class="mark-all-off" data-action="mark-all-unwatched" title="Segna tutti gli episodi come non visti">○○</button>
               <button data-action="ep-minus" title="Rimuovi un episodio">−</button>
               <input type="number" class="ep-count" data-action="ep-count" value="${se.episodeCount}" min="1" max="999" title="Numero episodi">
-              <button data-action="ep-plus" title="Aggiungi un episodio">+</button>
               ${show.seasons.length > 1 ? '<button data-action="season-remove" title="Rimuovi stagione">🗑</button>' : ''}
             </div>
           </div>
@@ -460,7 +459,7 @@
         </div>
       `).join('');
 
-      body.innerHTML = (expanded ? seasonsHtml + '<button class="add-season" data-action="season-add">+ Aggiungi stagione</button>' : '') + `
+      body.innerHTML = (expanded ? seasonsHtml : '') + `
         <div class="progress-line"><span>${watched}/${total} episodi</span><span>${pct}%</span></div>
         <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
       `;
@@ -560,8 +559,6 @@
       if(minusBtn) minusBtn.onclick = () => {
         if(se.episodeCount > 1) setEpisodeCount(se.episodeCount - 1);
       };
-      const plusBtn = row.querySelector('[data-action="ep-plus"]');
-      if(plusBtn) plusBtn.onclick = () => setEpisodeCount(se.episodeCount + 1);
 
       const countInput = row.querySelector('[data-action="ep-count"]');
       if(countInput){
@@ -613,13 +610,6 @@
         saveShows(); render();
       };
     });
-
-    const addSeasonBtn = body.querySelector('[data-action="season-add"]');
-    if(addSeasonBtn) addSeasonBtn.onclick = () => {
-      show.seasons.push({episodeCount: 1, watched: [false]});
-      touchShow(show);
-      saveShows(); render();
-    };
 
     return card;
   }
