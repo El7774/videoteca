@@ -88,6 +88,11 @@
     <div class="favorites-carousel" id="favoritesGrid"></div>
   </div>
 
+  <div class="genres-section" id="genresSection">
+    <div class="genres-header"><h2>Generi Popolari</h2></div>
+    <div class="genres-carousel" id="genresCarousel"></div>
+  </div>
+
   <div class="trending-section" id="trendingTvSection">
     <div class="trending-header"><h2>Serie TV del momento</h2></div>
     <div class="trending-carousel" id="trendingTvCarousel"></div>
@@ -150,7 +155,7 @@
   let shows = [];
   let mediaFilter = 'all';
   const toggledIds = new Set();
-  const seasonEpisodeNamesCache = new Map(); // 'tvId:season' -> Promise<{[episodeNumber]: name}>
+  const seasonEpisodeNamesCache = new Map(); // 'tvId:season' -> Promise<{[episodeNumber]: {name, stillUrl, runtime}}>
 
   function getSeasonEpisodeNames(tvId, season){
     const key = tvId + ':' + season;
@@ -158,7 +163,7 @@
     const promise = apiFetch('/catalog/episodes?tvId=' + encodeURIComponent(tvId) + '&season=' + season)
       .then(list => {
         const map = {};
-        (list || []).forEach(e => { if(e && e.episodeNumber) map[e.episodeNumber] = e.name; });
+        (list || []).forEach(e => { if(e && e.episodeNumber) map[e.episodeNumber] = e; });
         return map;
       })
       .catch(() => {
@@ -249,6 +254,65 @@
 
     renderTrendingType('tv', tvSection, document.getElementById('trendingTvCarousel'));
     renderTrendingType('movie', moviesSection, document.getElementById('trendingMoviesCarousel'));
+  }
+
+  // ---- "Generi Popolari" (da TMDB, non legati alla collezione) ----
+  // Colore tema per ciascun genere (r,g,b), stesso ID usato dal backend in POPULAR_GENRES.
+  const GENRE_TINTS = {
+    28: '224,64,45',     // Azione — rosso fuoco
+    35: '235,169,42',    // Commedia — giallo/ambra
+    18: '58,79,138',     // Dramma — blu notte
+    27: '69,32,84',      // Horror — viola scuro
+    10749: '214,73,122', // Romantico — rosa
+    878: '32,150,178',   // Fantascienza — ciano
+    16: '214,111,42',    // Animazione — arancio caldo
+    80: '120,30,30',     // Crime — rosso scuro
+    14: '58,140,90',     // Fantasy — verde smeraldo
+    99: '75,99,101'      // Documentario — grigio-teal
+  };
+
+  let genresRendered = false; // già costruito in DOM: non ripetere il fetch/render ad ogni render()
+  let genresPromise = null;
+
+  function fetchGenres(){
+    if(genresPromise) return genresPromise;
+    genresPromise = apiFetch('/catalog/genres')
+      .catch(() => {
+        genresPromise = null; // fallita: riprova al prossimo render
+        return null;
+      });
+    return genresPromise;
+  }
+
+  function buildGenreCard(genre){
+    const card = document.createElement('div');
+    card.className = 'genre-card';
+    card.style.setProperty('--genre-tint', GENRE_TINTS[genre.id] || '120,120,120');
+    if(genre.backdropUrl) card.style.backgroundImage = `url("${genre.backdropUrl}")`;
+    card.innerHTML = `<span class="genre-card-name">${escapeHtml(genre.name)}</span>`;
+    return card;
+  }
+
+  function renderGenres(){
+    const section = document.getElementById('genresSection');
+
+    if(mediaFilter !== 'all'){
+      section.style.display = 'none';
+      return;
+    }
+    if(genresRendered){
+      section.style.display = 'block';
+      return;
+    }
+
+    fetchGenres().then(genres => {
+      if(!genres || genres.length === 0){ section.style.display = 'none'; return; }
+      genresRendered = true;
+      section.style.display = 'block';
+      const carousel = document.getElementById('genresCarousel');
+      carousel.innerHTML = '';
+      genres.forEach(genre => carousel.appendChild(buildGenreCard(genre)));
+    });
   }
 
   function isCardExpanded(show){
@@ -755,8 +819,8 @@
     }
 
     // ---- Episodi successivi (della stagione della serie mostrata in grande) ----
-    const upcoming = getUpcomingEpisodesInSeason(current, 6);
-    const labelByEpisode = {};
+    const upcoming = getUpcomingEpisodesInSeason(current, 3);
+    const rowRefsByEpisode = {};
     if(!next || upcoming.episodes.length === 0){
       episodesEl.innerHTML = '<div class="now-watching-empty-side">Nessun altro episodio da vedere in questa stagione.</div>';
     } else {
@@ -765,12 +829,21 @@
         const row = document.createElement('div');
         row.className = 'now-watching-episode';
         row.innerHTML = `
-          <span class="now-watching-episode-num">E${epNumber}</span>
-          <span class="now-watching-episode-label">Episodio ${epNumber}</span>
-          ${current.episodeRuntime ? `<span class="now-watching-episode-runtime">${current.episodeRuntime} min</span>` : ''}
+          <div class="now-watching-episode-still" aria-hidden="true"></div>
+          <div class="now-watching-episode-info">
+            <div class="now-watching-episode-top">
+              <span class="now-watching-episode-num">E${epNumber}</span>
+              <span class="now-watching-episode-label">Episodio ${epNumber}</span>
+            </div>
+            <span class="now-watching-episode-runtime">${current.episodeRuntime ? current.episodeRuntime + ' min' : ''}</span>
+          </div>
         `;
         episodesEl.appendChild(row);
-        labelByEpisode[epNumber] = row.querySelector('.now-watching-episode-label');
+        rowRefsByEpisode[epNumber] = {
+          still: row.querySelector('.now-watching-episode-still'),
+          label: row.querySelector('.now-watching-episode-label'),
+          runtime: row.querySelector('.now-watching-episode-runtime')
+        };
       });
       if(upcoming.remaining > 0){
         const more = document.createElement('div');
@@ -780,22 +853,31 @@
       }
     }
 
-    // Sostituisce "Episodio N" con il vero titolo, sia nella preview grande (episodio in corso)
-    // sia nella lista "Episodi successivi", appena disponibile da TMDB. Se la serie non ha
-    // ancora un tmdbId salvato (aggiunta prima di questa funzione), prova prima a recuperarlo
-    // cercando il titolo; se anche questo fallisce, o TMDB non ha il nome, restano le etichette
-    // generiche senza rompere nulla.
+    // Sostituisce le etichette generiche con nome, durata e immagine di anteprima veri,
+    // sia nella preview grande (episodio in corso) sia nella lista "Episodi successivi",
+    // appena disponibili da TMDB. Se la serie non ha ancora un tmdbId salvato (aggiunta
+    // prima di questa funzione), prova prima a recuperarlo cercando il titolo; se anche
+    // questo fallisce, o TMDB non ha il dato, restano le etichette generiche senza rompere nulla.
     if(next){
       resolveTmdbId(current).then(tvId => {
         if(!tvId) return;
-        return getSeasonEpisodeNames(tvId, next.season).then(names => {
-          if(!names) return;
-          const heroEpisodeName = names[next.episode];
-          const heroSubtitleEl = document.getElementById('nowWatchingHeroEpisodeName');
-          if(heroSubtitleEl && heroEpisodeName) heroSubtitleEl.textContent = heroEpisodeName;
-          Object.keys(labelByEpisode).forEach(epNumber => {
-            const name = names[epNumber];
-            if(name) labelByEpisode[epNumber].textContent = name;
+        return getSeasonEpisodeNames(tvId, next.season).then(episodesData => {
+          if(!episodesData) return;
+
+          const heroEpisode = episodesData[next.episode];
+          if(heroEpisode && heroEpisode.name){
+            const heroSubtitleEl = document.getElementById('nowWatchingHeroEpisodeName');
+            if(heroSubtitleEl) heroSubtitleEl.textContent = heroEpisode.name;
+          }
+
+          Object.keys(rowRefsByEpisode).forEach(epNumber => {
+            const data = episodesData[epNumber];
+            if(!data) return;
+            const refs = rowRefsByEpisode[epNumber];
+            if(data.name) refs.label.textContent = data.name;
+            if(data.stillUrl) refs.still.innerHTML = `<img src="${data.stillUrl}" alt="" loading="lazy">`;
+            const runtimeMin = data.runtime || current.episodeRuntime;
+            if(runtimeMin) refs.runtime.textContent = runtimeMin + ' min';
           });
         });
       });
@@ -829,6 +911,7 @@
   function render(){
     renderNowWatching();
     renderFavorites();
+    renderGenres();
     renderTrending();
     renderGrid();
   }
