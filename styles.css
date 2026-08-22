@@ -164,7 +164,6 @@
     height: 347px;
     border-radius: calc(var(--radius) + 4px);
     overflow: hidden;
-    border: 1px solid var(--line);
     background-color: var(--panel-raised);
     background-size: cover;
     background-position: center;
@@ -361,6 +360,7 @@
   button.btn.primary:hover{ filter: brightness(1.08); }
   button.btn.ghost{ background: transparent; }
   button:focus-visible, input:focus-visible, select:focus-visible, .square:focus-visible{ outline: 2px solid var(--orange); outline-offset: 2px; }
+  .topnav-search input:focus-visible, .online-search-field input:focus-visible{ outline: none; }
 
   /* ---------- Grid ---------- */
   .grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 18px; }
