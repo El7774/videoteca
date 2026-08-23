@@ -349,6 +349,18 @@
     .topnav-search{ max-width: none; }
   }
 
+  /* Correzione solo per Safari/WebKit (iOS, iPadOS, macOS): su questi browser, sotto i 900px,
+     i link di navigazione sparivano del tutto e la barra di ricerca occupava tutta la riga.
+     -webkit-touch-callout non è supportato da Chrome/Opera (motore Blink), quindi questo
+     blocco viene ignorato interamente su Android: il risultato lì resta invariato. */
+  @supports (-webkit-touch-callout: none){
+    @media (max-width: 900px){
+      .topnav-inner{ flex-wrap: wrap; row-gap: 10px; }
+      .topnav-links{ display:flex; flex-wrap: wrap; order: 3; width: 100%; justify-content: center; gap: 16px; }
+      .topnav-search{ order: 2; flex: 1 1 auto; max-width: none; }
+    }
+  }
+
   /* ---------- Header ---------- */
   header{ display:flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; margin-bottom: 28px; border-bottom: 1px dashed var(--line); padding-bottom: 24px; }
   .eyebrow{ font-family:'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 3px; color: var(--orange); text-transform: uppercase; margin: 0 0 6px; }
