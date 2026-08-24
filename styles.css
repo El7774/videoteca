@@ -381,7 +381,7 @@
 
   /* ---------- Card ---------- */
   .card{ background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display:flex; flex-direction:column; position:relative; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
-  .card-head{ padding: 16px 16px 14px; position: relative; }
+  .card-head{ padding: 16px 16px 14px; min-height: 130px; display:flex; flex-direction:column; justify-content:flex-end; position: relative; }
   .card-head::after{ content:""; position:absolute; left:0; right:0; bottom:-1px; height:1px; background-image: linear-gradient(to right, var(--line) 60%, transparent 0%); background-size: 10px 1px; background-repeat: repeat-x; }
   .type-badge{ font-family:'JetBrains Mono',monospace; font-size: 10px; letter-spacing: 1.5px; padding: 2px 8px; border-radius: 4px; display:inline-block; margin-bottom: 8px; text-transform: uppercase; }
   .type-badge.serie{ background: rgba(var(--teal-rgb),0.18); color: var(--teal); border: 1px solid rgba(var(--teal-rgb),0.4); }
