@@ -945,16 +945,13 @@
 
   function buildResultRow(r){
     const item = document.createElement('div');
-    item.className = 'online-search-result';
+    item.className = 'online-search-card';
     item.innerHTML = `
-      <div class="online-search-poster">${r.posterUrl ? `<img src="${r.posterUrl}" alt="">` : '🎬'}</div>
-      <div class="online-search-info">
-        <div class="online-search-title">${escapeHtml(r.title)}${r.year ? ' <span class="online-search-year">(' + escapeHtml(r.year) + ')</span>' : ''}</div>
-        <span class="type-badge ${r.mediaType === 'movie' ? 'film' : 'serie'}">${mediaTypeLabel(r.mediaType)}</span>
-      </div>
-      <button type="button" class="btn primary online-search-add">+ Aggiungi</button>
+      <div class="online-search-card-poster">${r.posterUrl ? `<img src="${r.posterUrl}" alt="" loading="lazy">` : '🎬'}</div>
+      <div class="online-search-card-title">${escapeHtml(r.title)}${r.year ? ' <span class="online-search-card-year">(' + escapeHtml(r.year) + ')</span>' : ''}</div>
+      <button type="button" class="btn primary online-search-card-add">+ Aggiungi</button>
     `;
-    item.querySelector('.online-search-add').onclick = (e) => { e.stopPropagation(); addFromOnlineSearch(r, item); };
+    item.querySelector('.online-search-card-add').onclick = (e) => { e.stopPropagation(); addFromOnlineSearch(r, item); };
     return item;
   }
 
@@ -1018,7 +1015,7 @@
   });
 
   async function addFromOnlineSearch(result, itemEl){
-    const addBtn = itemEl.querySelector('.online-search-add');
+    const addBtn = itemEl.querySelector('.online-search-card-add');
     addBtn.disabled = true;
     addBtn.textContent = 'Attendere…';
 

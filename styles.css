@@ -129,7 +129,7 @@
     left: 0;
     right: 0;
     z-index: 40;
-    padding: 8px;
+    padding: 10px;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: var(--panel-raised);
@@ -138,17 +138,17 @@
     box-shadow: 0 12px 30px rgba(0,0,0,0.35);
     max-height: 70vh;
     overflow-y: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
   }
-  .online-search-status{ padding: 14px; text-align: center; color: var(--muted); font-family:'JetBrains Mono',monospace; font-size: 13px; }
-  .online-search-result{ display:flex; align-items:center; gap: 14px; padding: 10px; border-radius: 10px; transition: background 0.15s ease; cursor: default; }
-  .online-search-result:hover{ background: var(--panel); }
-  .online-search-result + .online-search-result{ border-top: 1px solid var(--line); margin-top: 2px; padding-top: 12px; }
-  .online-search-poster{ width: 42px; height: 60px; flex-shrink:0; border-radius: 6px; overflow:hidden; background: var(--panel); display:flex; align-items:center; justify-content:center; font-size: 18px; }
-  .online-search-poster img{ width:100%; height:100%; object-fit:cover; }
-  .online-search-info{ flex:1; min-width:0; }
-  .online-search-title{ font-family:'Inter',sans-serif; font-weight:600; font-size: 14px; color: var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom: 4px; }
-  .online-search-year{ font-weight:400; color: var(--muted); }
-  .online-search-add{ flex-shrink:0; padding: 8px 14px; font-size: 13px; }
+  .online-search-status{ width:100%; padding: 14px; text-align: center; color: var(--muted); font-family:'JetBrains Mono',monospace; font-size: 13px; }
+  .online-search-card{ flex: 0 0 140px; width: 140px; display:flex; flex-direction:column; gap: 6px; }
+  .online-search-card-poster{ width: 140px; height: 200px; border-radius: 10px; overflow:hidden; background: var(--panel-raised); display:flex; align-items:center; justify-content:center; font-size: 28px; }
+  .online-search-card-poster img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .online-search-card-title{ font-family:'Inter',sans-serif; font-weight:600; font-size: 13px; color: var(--text); line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .online-search-card-year{ font-family:'JetBrains Mono',monospace; font-weight:400; color: var(--muted); }
+  .online-search-card-add{ width:100%; padding: 7px 10px; font-size: 12.5px; }
   .online-search-see-all{ display:block; width:100%; text-align:center; margin-top: 6px; padding: 10px; background: transparent; border: none; border-top: 1px solid var(--line); color: var(--orange); font-family:'JetBrains Mono',monospace; font-size: 12.5px; cursor: pointer; }
   .online-search-see-all:hover{ color: var(--text); }
 

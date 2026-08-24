@@ -19,12 +19,8 @@
 <style>
   .search-page-header{ display:flex; align-items:center; gap: 14px; margin-bottom: 24px; }
   .search-page-header h1{ font-family:'Bebas Neue',sans-serif; font-size: 32px; letter-spacing: 0.5px; margin:0; }
-  .search-results-grid{ display:flex; flex-direction:column; gap: 4px; }
-  .search-results-grid .online-search-result{ padding: 14px; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--line); }
-  .search-results-grid .online-search-result + .online-search-result{ border-top: 1px solid var(--line); margin-top: 8px; padding-top: 14px; }
-  .search-results-grid .online-search-poster{ width: 56px; height: 80px; font-size: 22px; }
-  .search-results-grid .online-search-title{ white-space: normal; font-size: 15px; }
-  .search-empty{ text-align:center; padding: 60px 20px; color: var(--muted); font-family:'JetBrains Mono',monospace; }
+  .search-results-grid{ display:flex; flex-wrap:wrap; gap: 20px; }
+  .search-empty{ width:100%; text-align:center; padding: 60px 20px; color: var(--muted); font-family:'JetBrains Mono',monospace; }
 </style>
 </head>
 <body>
@@ -210,21 +206,18 @@
 
   function buildResultRow(r){
     const item = document.createElement('div');
-    item.className = 'online-search-result';
+    item.className = 'online-search-card';
     item.innerHTML = `
-      <div class="online-search-poster">${r.posterUrl ? `<img src="${r.posterUrl}" alt="">` : '🎬'}</div>
-      <div class="online-search-info">
-        <div class="online-search-title">${escapeHtml(r.title)}${r.year ? ' <span class="online-search-year">(' + escapeHtml(r.year) + ')</span>' : ''}</div>
-        <span class="type-badge ${r.mediaType === 'movie' ? 'film' : 'serie'}">${mediaTypeLabel(r.mediaType)}</span>
-      </div>
-      <button type="button" class="btn primary online-search-add">+ Aggiungi</button>
+      <div class="online-search-card-poster">${r.posterUrl ? `<img src="${r.posterUrl}" alt="" loading="lazy">` : '🎬'}</div>
+      <div class="online-search-card-title">${escapeHtml(r.title)}${r.year ? ' <span class="online-search-card-year">(' + escapeHtml(r.year) + ')</span>' : ''}</div>
+      <button type="button" class="btn primary online-search-card-add">+ Aggiungi</button>
     `;
-    item.querySelector('.online-search-add').onclick = () => addResult(r, item);
+    item.querySelector('.online-search-card-add').onclick = () => addResult(r, item);
     return item;
   }
 
   async function addResult(result, itemEl){
-    const addBtn = itemEl.querySelector('.online-search-add');
+    const addBtn = itemEl.querySelector('.online-search-card-add');
     addBtn.disabled = true;
     addBtn.textContent = 'Attendere…';
 
