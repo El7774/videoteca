@@ -172,18 +172,20 @@
 
   // Per i titoli aggiunti prima che salvassimo il tmdbId, lo recupera cercando
   // il titolo su TMDB e lo salva sulla scheda per non doverlo rifare in futuro.
-  const tmdbIdResolveCache = new Map(); // titolo -> Promise<tmdbId|null>, evita ricerche duplicate in parallelo
+  const tmdbIdResolveCache = new Map(); // 'tipo:titolo' -> Promise<tmdbId|null>, evita ricerche duplicate in parallelo
   async function resolveTmdbId(show){
     if(show.tmdbId) return show.tmdbId;
-    const key = show.title.trim().toLowerCase();
+    const wantedType = show.type === 'film' ? 'movie' : 'tv';
+    const key = wantedType + ':' + show.title.trim().toLowerCase();
     if(tmdbIdResolveCache.has(key)) return tmdbIdResolveCache.get(key);
 
     const promise = apiFetch('/catalog/search?query=' + encodeURIComponent(show.title))
       .then(results => {
-        const tvResults = (results || []).filter(r => r.mediaType === 'tv');
-        if(tvResults.length === 0) return null;
-        const exact = tvResults.find(r => r.title.trim().toLowerCase() === key);
-        const chosen = exact || tvResults[0];
+        const matches = (results || []).filter(r => r.mediaType === wantedType);
+        if(matches.length === 0) return null;
+        const target = show.title.trim().toLowerCase();
+        const exact = matches.find(r => r.title.trim().toLowerCase() === target);
+        const chosen = exact || matches[0];
         show.tmdbId = chosen.tmdbId;
         saveShows();
         return chosen.tmdbId;
@@ -223,6 +225,19 @@
   }
 
   // ---- "I tuoi film" (i film già nello scaffale, con la stessa card di "Film del momento") ----
+  const movieStatsCache = new Map(); // movieId -> Promise<{voteAverage}|null>
+
+  function fetchMovieStats(movieId){
+    if(movieStatsCache.has(movieId)) return movieStatsCache.get(movieId);
+    const promise = apiFetch('/catalog/movie-stats?movieId=' + encodeURIComponent(movieId))
+      .catch(() => {
+        movieStatsCache.delete(movieId); // fallita: riprova al prossimo render
+        return null;
+      });
+    movieStatsCache.set(movieId, promise);
+    return promise;
+  }
+
   function buildMyMovieCard(show){
     const card = document.createElement('div');
     card.className = 'trending-card my-movie-card';
@@ -230,6 +245,7 @@
       <button type="button" class="my-movie-remove" data-action="remove" title="Rimuovi dallo scaffale">✕</button>
       <div class="trending-poster">${show.posterUrl ? `<img src="${show.posterUrl}" alt="" loading="lazy">` : '🎬'}</div>
       <div class="trending-title">${escapeHtml(show.title)}</div>
+      <div class="my-shelf-stats"></div>
       <div class="my-movie-footer">
         <div class="stars">
           ${[1,2,3,4,5].map(n => `<span class="star ${show.rating >= n ? 'on' : ''}" data-value="${n}">★</span>`).join('')}
@@ -263,6 +279,19 @@
       render();
       showNotice(`"${show.title}" rimosso dallo scaffale.`);
     };
+
+    // Voto medio TMDB (su 10), convertito su scala 5 stelle come richiesto.
+    // Recuperato in background: se manca il tmdbId (film aggiunto prima di questa funzione),
+    // prova prima a recuperarlo cercando il titolo.
+    const statsEl = card.querySelector('.my-shelf-stats');
+    resolveTmdbId(show).then(movieId => {
+      if(!movieId) return;
+      return fetchMovieStats(movieId).then(stats => {
+        if(!stats || !stats.voteAverage) return;
+        const outOfFive = Math.round((stats.voteAverage / 2) * 10) / 10;
+        statsEl.textContent = '★ ' + outOfFive + '/5 TMDB';
+      });
+    });
 
     return card;
   }
@@ -308,7 +337,7 @@
       <button type="button" class="my-movie-remove" data-action="remove" title="Rimuovi dallo scaffale">✕</button>
       <div class="trending-poster">${show.posterUrl ? `<img src="${show.posterUrl}" alt="" loading="lazy">` : '🎬'}</div>
       <div class="trending-title">${escapeHtml(show.title)}</div>
-      <div class="my-series-stats"></div>
+      <div class="my-shelf-stats"></div>
       <div class="my-movie-footer">
         <div class="stars">
           ${[1,2,3,4,5].map(n => `<span class="star ${show.rating >= n ? 'on' : ''}" data-value="${n}">★</span>`).join('')}
@@ -346,7 +375,7 @@
     // Statistiche da TMDB (stagioni, stato, voto medio): recuperate in background e
     // inserite appena arrivano, senza bloccare la comparsa della card. Se la serie non
     // ha ancora un tmdbId salvato, prova prima a recuperarlo cercando il titolo.
-    const statsEl = card.querySelector('.my-series-stats');
+    const statsEl = card.querySelector('.my-shelf-stats');
     resolveTmdbId(show).then(tvId => {
       if(!tvId) return;
       return fetchTvStats(tvId).then(stats => {
@@ -912,7 +941,7 @@
       episodeRuntime: details.episodeRuntime || null,
       posterUrl: details.posterUrl || result.posterUrl || null,
       backdropUrl: details.backdropUrl || null,
-      tmdbId: result.mediaType === 'tv' ? result.tmdbId : null,
+      tmdbId: result.tmdbId || null,
       lastModifiedAt: Date.now(),
       seasons: details.seasons
     });

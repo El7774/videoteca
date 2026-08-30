@@ -250,7 +250,7 @@
       episodeRuntime: details.episodeRuntime || null,
       posterUrl: details.posterUrl || result.posterUrl || null,
       backdropUrl: details.backdropUrl || null,
-      tmdbId: result.mediaType === 'tv' ? result.tmdbId : null,
+      tmdbId: result.tmdbId || null,
       lastModifiedAt: Date.now(),
       seasons: details.seasons
     });
