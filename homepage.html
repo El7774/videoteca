@@ -93,6 +93,11 @@
     <div class="trending-carousel" id="myMoviesCarousel"></div>
   </div>
 
+  <div class="trending-section" id="mySeriesSection">
+    <div class="trending-header"><h2>Le tue serie</h2></div>
+    <div class="trending-carousel" id="mySeriesCarousel"></div>
+  </div>
+
   <div class="genres-section" id="genresSection">
     <div class="genres-header"><h2>Generi Popolari</h2></div>
     <div class="genres-carousel" id="genresCarousel"></div>
@@ -280,6 +285,101 @@
     section.style.display = 'block';
     carousel.innerHTML = '';
     movies.forEach(show => carousel.appendChild(buildMyMovieCard(show)));
+  }
+
+  // ---- "Le tue serie" (stessa card interattiva di "I tuoi film", più le statistiche TMDB della serie) ----
+  const tvStatsCache = new Map(); // tvId -> Promise<{voteAverage, status, numberOfSeasons, numberOfEpisodes}|null>
+
+  function fetchTvStats(tvId){
+    if(tvStatsCache.has(tvId)) return tvStatsCache.get(tvId);
+    const promise = apiFetch('/catalog/tv-stats?tvId=' + encodeURIComponent(tvId))
+      .catch(() => {
+        tvStatsCache.delete(tvId); // fallita: riprova al prossimo render
+        return null;
+      });
+    tvStatsCache.set(tvId, promise);
+    return promise;
+  }
+
+  function buildMySeriesCard(show){
+    const card = document.createElement('div');
+    card.className = 'trending-card my-movie-card';
+    card.innerHTML = `
+      <button type="button" class="my-movie-remove" data-action="remove" title="Rimuovi dallo scaffale">✕</button>
+      <div class="trending-poster">${show.posterUrl ? `<img src="${show.posterUrl}" alt="" loading="lazy">` : '🎬'}</div>
+      <div class="trending-title">${escapeHtml(show.title)}</div>
+      <div class="my-series-stats"></div>
+      <div class="my-movie-footer">
+        <div class="stars">
+          ${[1,2,3,4,5].map(n => `<span class="star ${show.rating >= n ? 'on' : ''}" data-value="${n}">★</span>`).join('')}
+        </div>
+        <button type="button" class="my-movie-heart ${show.favorite ? 'on' : ''}" data-action="favorite" title="${show.favorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}">${show.favorite ? '♥' : '♡'}</button>
+      </div>
+    `;
+
+    card.querySelectorAll('.star').forEach(starEl => {
+      starEl.onclick = (e) => {
+        e.stopPropagation();
+        const value = parseInt(starEl.dataset.value, 10);
+        show.rating = (show.rating === value) ? 0 : value;
+        touchShow(show);
+        saveShows(); render();
+      };
+    });
+
+    card.querySelector('.my-movie-heart').onclick = (e) => {
+      e.stopPropagation();
+      show.favorite = !show.favorite;
+      touchShow(show);
+      saveShows(); render();
+    };
+
+    card.querySelector('.my-movie-remove').onclick = (e) => {
+      e.stopPropagation();
+      if(!confirm(`Rimuovere "${show.title}" dallo scaffale?`)) return;
+      shows = shows.filter(s => s.id !== show.id);
+      saveShows();
+      render();
+      showNotice(`"${show.title}" rimosso dallo scaffale.`);
+    };
+
+    // Statistiche da TMDB (stagioni, stato, voto medio): recuperate in background e
+    // inserite appena arrivano, senza bloccare la comparsa della card. Se la serie non
+    // ha ancora un tmdbId salvato, prova prima a recuperarlo cercando il titolo.
+    const statsEl = card.querySelector('.my-series-stats');
+    resolveTmdbId(show).then(tvId => {
+      if(!tvId) return;
+      return fetchTvStats(tvId).then(stats => {
+        if(!stats) return;
+        const parts = [];
+        if(stats.numberOfSeasons) parts.push(stats.numberOfSeasons + (stats.numberOfSeasons === 1 ? ' stagione' : ' stagioni'));
+        if(stats.status) parts.push(stats.status);
+        if(stats.voteAverage) parts.push('★ ' + stats.voteAverage + ' TMDB');
+        if(parts.length) statsEl.textContent = parts.join(' · ');
+      });
+    });
+
+    return card;
+  }
+
+  function renderMySeries(){
+    const section = document.getElementById('mySeriesSection');
+    const carousel = document.getElementById('mySeriesCarousel');
+
+    if(mediaFilter !== 'serie'){
+      section.style.display = 'none';
+      return;
+    }
+
+    const series = shows.filter(s => s.type === 'serie');
+    if(series.length === 0){
+      section.style.display = 'none';
+      return;
+    }
+
+    section.style.display = 'block';
+    carousel.innerHTML = '';
+    series.forEach(show => carousel.appendChild(buildMySeriesCard(show)));
   }
 
   const trendingRendered = { tv: false, movie: false }; // già costruito in DOM: non ripetere il fetch/render ad ogni render()
@@ -679,6 +779,7 @@
     renderNowWatching();
     renderFavorites();
     renderMyMovies();
+    renderMySeries();
     renderGenres();
     renderTrending();
   }
