@@ -224,6 +224,17 @@
     return promise;
   }
 
+  // Un titolo "del momento" è già nello scaffale se c'è uno show con lo stesso tmdbId e lo stesso tipo.
+  function isInShelf(item){
+    const wantedType = item.mediaType === 'movie' ? 'film' : 'serie';
+    return shows.some(s => s.tmdbId === item.tmdbId && s.type === wantedType);
+  }
+
+  function applyAddButtonState(btn, added){
+    btn.disabled = added;
+    btn.textContent = added ? '✓' : '+';
+  }
+
   function buildTrendingCard(item){
     const card = document.createElement('div');
     card.className = 'trending-card';
@@ -235,9 +246,11 @@
       ${item.rating ? `<span class="trending-rating">★ ${item.rating}</span>` : ''}
       <div class="trending-title">${escapeHtml(item.title)}${item.year ? ` <span class="trending-year">(${escapeHtml(item.year)})</span>` : ''}</div>
     `;
-    card.querySelector('.trending-add').onclick = (e) => {
+    const addBtn = card.querySelector('.trending-add');
+    applyAddButtonState(addBtn, isInShelf(item));
+    addBtn.onclick = (e) => {
       e.stopPropagation();
-      addFromTrending(item, card.querySelector('.trending-add'));
+      addFromTrending(item, addBtn);
     };
     return card;
   }
@@ -275,7 +288,6 @@
     render();
 
     showNotice('"' + details.title + '" aggiunto alla videoteca.');
-    addBtn.textContent = '✓';
   }
 
   // ---- "I tuoi film" (i film già nello scaffale, con la stessa card di "Film del momento") ----
@@ -466,6 +478,7 @@
   }
 
   const trendingRendered = { tv: false, movie: false }; // già costruito in DOM: non ripetere il fetch/render ad ogni render()
+  const trendingCardRefs = { tv: [], movie: [] }; // { item, btn } per ogni card già costruita, per risincronizzare lo stato del "+"
 
   function renderTrendingType(type, section, carousel){
     if(trendingRendered[type]){
@@ -477,8 +490,20 @@
       trendingRendered[type] = true;
       section.style.display = 'block';
       carousel.innerHTML = '';
-      results.forEach(item => carousel.appendChild(buildTrendingCard(item)));
+      trendingCardRefs[type] = [];
+      results.forEach(item => {
+        const card = buildTrendingCard(item);
+        carousel.appendChild(card);
+        trendingCardRefs[type].push({ item, btn: card.querySelector('.trending-add') });
+      });
     });
+  }
+
+  // Riallinea lo stato "+"/"✓" di ogni card già costruita al reale contenuto dello scaffale
+  // (chiamata ad ogni render(): copre sia l'aggiunta sia la rimozione di un titolo).
+  function syncTrendingAddButtons(){
+    trendingCardRefs.tv.forEach(({item, btn}) => applyAddButtonState(btn, isInShelf(item)));
+    trendingCardRefs.movie.forEach(({item, btn}) => applyAddButtonState(btn, isInShelf(item)));
   }
 
   function renderTrending(){
@@ -493,6 +518,7 @@
 
     renderTrendingType('tv', tvSection, document.getElementById('trendingTvCarousel'));
     renderTrendingType('movie', moviesSection, document.getElementById('trendingMoviesCarousel'));
+    syncTrendingAddButtons();
   }
 
   // ---- "Generi Popolari" (da TMDB, non legati alla collezione) ----
