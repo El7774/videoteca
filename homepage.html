@@ -217,11 +217,54 @@
     const card = document.createElement('div');
     card.className = 'trending-card';
     card.innerHTML = `
-      <div class="trending-poster">${item.posterUrl ? `<img src="${item.posterUrl}" alt="" loading="lazy">` : '🎬'}</div>
+      <div class="trending-poster">
+        ${item.posterUrl ? `<img src="${item.posterUrl}" alt="" loading="lazy">` : '🎬'}
+        <button type="button" class="trending-add" data-action="add" title="Aggiungi allo scaffale">+</button>
+      </div>
       ${item.rating ? `<span class="trending-rating">★ ${item.rating}</span>` : ''}
       <div class="trending-title">${escapeHtml(item.title)}${item.year ? ` <span class="trending-year">(${escapeHtml(item.year)})</span>` : ''}</div>
     `;
+    card.querySelector('.trending-add').onclick = (e) => {
+      e.stopPropagation();
+      addFromTrending(item, card.querySelector('.trending-add'));
+    };
     return card;
+  }
+
+  async function addFromTrending(item, addBtn){
+    if(addBtn.disabled) return;
+    addBtn.disabled = true;
+    addBtn.textContent = '…';
+
+    let details;
+    try{
+      details = await apiFetch('/catalog/details?id=' + item.tmdbId + '&type=' + item.mediaType);
+    }catch(e){
+      if(e.status === 401){ redirectToLogin(); return; }
+      showNotice('Impossibile recuperare i dettagli: ' + e.message);
+      addBtn.disabled = false;
+      addBtn.textContent = '+';
+      return;
+    }
+
+    shows.unshift({
+      id: uid(),
+      title: details.title,
+      type: details.type,
+      rating: 0,
+      favorite: false,
+      episodeRuntime: details.episodeRuntime || null,
+      posterUrl: details.posterUrl || item.posterUrl || null,
+      backdropUrl: details.backdropUrl || null,
+      tmdbId: item.tmdbId || null,
+      lastModifiedAt: Date.now(),
+      seasons: details.seasons
+    });
+    saveShows();
+    render();
+
+    showNotice('"' + details.title + '" aggiunto alla videoteca.');
+    addBtn.textContent = '✓';
   }
 
   // ---- "I tuoi film" (i film già nello scaffale, con la stessa card di "Film del momento") ----
