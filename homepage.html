@@ -231,7 +231,6 @@
   }
 
   function applyAddButtonState(btn, added){
-    btn.disabled = added;
     btn.textContent = added ? '✓' : '+';
   }
 
@@ -256,8 +255,22 @@
   }
 
   async function addFromTrending(item, addBtn){
-    if(addBtn.disabled) return;
-    addBtn.disabled = true;
+    if(addBtn.dataset.busy === '1') return; // evita doppio clic mentre una richiesta è già in corso
+
+    // Se il titolo è già nello scaffale, un secondo clic sullo stesso tasto lo rimuove.
+    if(isInShelf(item)){
+      const wantedType = item.mediaType === 'movie' ? 'film' : 'serie';
+      const existing = shows.find(s => s.tmdbId === item.tmdbId && s.type === wantedType);
+      if(existing){
+        shows = shows.filter(s => s.id !== existing.id);
+        saveShows();
+        render();
+        showNotice(`"${existing.title}" rimosso dallo scaffale.`);
+      }
+      return;
+    }
+
+    addBtn.dataset.busy = '1';
     addBtn.textContent = '…';
 
     let details;
@@ -266,7 +279,7 @@
     }catch(e){
       if(e.status === 401){ redirectToLogin(); return; }
       showNotice('Impossibile recuperare i dettagli: ' + e.message);
-      addBtn.disabled = false;
+      addBtn.dataset.busy = '';
       addBtn.textContent = '+';
       return;
     }
@@ -285,6 +298,7 @@
       seasons: details.seasons
     });
     saveShows();
+    addBtn.dataset.busy = '';
     render();
 
     showNotice('"' + details.title + '" aggiunto alla videoteca.');

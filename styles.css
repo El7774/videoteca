@@ -310,7 +310,6 @@
     box-shadow: none;
   }
   .trending-add:hover{ backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
-  .trending-add:disabled{ cursor: default; }
   .trending-poster img{ width:100%; height:100%; object-fit:cover; display:block; }
   .trending-rating{ position:absolute; top: 6px; right: 6px; font-family:'JetBrains Mono',monospace; font-size: 11px; font-weight:700; color: #fff; background: rgba(0,0,0,0.6); border-radius: 999px; padding: 2px 8px; }
   .trending-title{ margin-top: 6px; font-family:'Inter',sans-serif; font-size: 13px; font-weight:600; color: var(--text); line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
