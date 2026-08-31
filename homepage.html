@@ -116,6 +116,17 @@
 
 </div>
 
+<div class="overlay" id="confirmOverlay" style="display:none;">
+  <div class="modal">
+    <h2>Conferma</h2>
+    <p id="confirmMessage"></p>
+    <div class="modal-actions">
+      <button class="btn ghost" id="confirmNo">Annulla</button>
+      <button class="btn primary" id="confirmYes">Rimuovi</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   // ATTENZIONE: sostituisci questo indirizzo con l'URL del tuo server
@@ -314,9 +325,9 @@
       saveShows(); render();
     };
 
-    card.querySelector('.my-movie-remove').onclick = (e) => {
+    card.querySelector('.my-movie-remove').onclick = async (e) => {
       e.stopPropagation();
-      if(!confirm(`Rimuovere "${show.title}" dallo scaffale?`)) return;
+      if(!(await showConfirm(`Rimuovere "${show.title}" dallo scaffale?`))) return;
       shows = shows.filter(s => s.id !== show.id);
       saveShows();
       render();
@@ -406,9 +417,9 @@
       saveShows(); render();
     };
 
-    card.querySelector('.my-movie-remove').onclick = (e) => {
+    card.querySelector('.my-movie-remove').onclick = async (e) => {
       e.stopPropagation();
-      if(!confirm(`Rimuovere "${show.title}" dallo scaffale?`)) return;
+      if(!(await showConfirm(`Rimuovere "${show.title}" dallo scaffale?`))) return;
       shows = shows.filter(s => s.id !== show.id);
       saveShows();
       render();
@@ -549,6 +560,28 @@
     t.textContent = message;
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 3200);
+  }
+
+  // Popup di conferma personalizzato (al posto del confirm() nativo del browser).
+  // Uso: if(!(await showConfirm('Messaggio?'))) return;
+  const confirmOverlay = document.getElementById('confirmOverlay');
+  const confirmMessageEl = document.getElementById('confirmMessage');
+  const confirmYesBtn = document.getElementById('confirmYes');
+  const confirmNoBtn = document.getElementById('confirmNo');
+  let confirmResolve = null;
+
+  function closeConfirm(result){
+    confirmOverlay.style.display = 'none';
+    if(confirmResolve){ confirmResolve(result); confirmResolve = null; }
+  }
+  confirmYesBtn.onclick = () => closeConfirm(true);
+  confirmNoBtn.onclick = () => closeConfirm(false);
+  confirmOverlay.onclick = (e) => { if(e.target === confirmOverlay) closeConfirm(false); };
+
+  function showConfirm(message){
+    confirmMessageEl.textContent = message;
+    confirmOverlay.style.display = 'flex';
+    return new Promise(resolve => { confirmResolve = resolve; });
   }
 
   async function loadShows(){
