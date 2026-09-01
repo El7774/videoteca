@@ -3,529 +3,1174 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Videoteca — I tuoi film, serie e anime preferiti</title>
-
+<title>Videoteca — la mia collezione</title>
 <script>
-  // Guardia di accesso: questa è una schermata di passaggio dopo il login,
-  // non una pagina pubblica — senza token si torna alla pagina di login.
+  // Guardia di accesso: senza un token salvato si torna al login
   if (!localStorage.getItem('videoteca-token') && !sessionStorage.getItem('videoteca-token')) {
     window.location.replace('index.html');
   }
-  // Applica il tema scelto dall'utente nel Profilo, per coerenza con il resto dell'app
+  // Applica il tema scelto dall'utente (letto localmente per evitare lo sfarfallio iniziale)
   (function(){
     var theme = localStorage.getItem('videoteca-theme');
     if(theme) document.documentElement.setAttribute('data-theme', theme);
   })();
 </script>
-
 <link rel="stylesheet" href="styles.css?v=6">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
-<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a href="homepage.html" class="topnav-logo">vid<span class="clapper" aria-hidden="true"><svg viewBox="0 0 24 24" class="clapper-svg">
+      <rect x="2" y="11" width="20" height="10" rx="2" class="clapper-base"/>
+      <rect x="2" y="3" width="20" height="7" rx="1.5" class="clapper-arm">
+        <animateTransform attributeName="transform" type="rotate" values="0 3 11; -24 3 11; 0 3 11" keyTimes="0;0.4;1" dur="2.6s" repeatCount="indefinite"/>
+      </rect>
+      <circle cx="3" cy="11" r="1.3" class="clapper-hinge"/>
+    </svg></span>oteca</a>
+
+    <div class="topnav-links">
+      <a href="homepage.html" class="topnav-link active" id="navBoard">Board</a>
+      <a href="#" class="topnav-link" id="navMovies">Movies</a>
+      <a href="#" class="topnav-link" id="navSeries">Series</a>
+      <a href="#" class="topnav-link" id="navStats">Statistiche</a>
+    </div>
+
+    <form class="topnav-search" id="onlineSearchForm">
+      <span class="online-search-icon">🔍</span>
+      <input type="search" id="onlineSearchInput" placeholder="Search" enterkeyhint="search" autocomplete="off">
+      <div class="online-search-live" id="onlineSearchLive" style="display:none;"></div>
+    </form>
+
+    <div class="topnav-user">
+      <label class="avatar-upload" id="avatarUpload" title="Cambia foto profilo">
+        <img class="avatar-img" id="avatarImg" alt="">
+        <span class="avatar-initial" id="avatarInitial"></span>
+        <input type="file" accept="image/*" id="avatarInput" hidden>
+      </label>
+      <a href="profilo.html" class="profile-link topnav-username"><strong id="sessionUserName"></strong></a>
+    </div>
+  </div>
+</nav>
+
 <script>
-  tailwind.config = {
-    theme: {
-      extend: {
-        fontFamily: {
-          display: ['Bebas Neue', 'sans-serif'],
-          sans: ['Inter', 'sans-serif']
-        }
-      }
-    }
-  };
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    document.querySelectorAll('.clapper-arm animateTransform').forEach(el => el.remove());
+  }
 </script>
 
-<style>
-  html, body { background: var(--bg); font-family: 'Inter', sans-serif; }
-  ::selection { background: rgba(var(--orange-rgb), 0.4); }
+<div class="wrap">
 
-  /* Sfondo pagina: stesso wash cinematico a due toni usato nel resto dell'app */
-  body{
-    background-image:
-      radial-gradient(circle at 10% 0%, rgba(var(--wash-1-rgb),0.14), transparent 42%),
-      radial-gradient(circle at 90% 15%, rgba(var(--wash-2-rgb),0.16), transparent 42%),
-      radial-gradient(circle at 50% 100%, rgba(var(--wash-1-rgb),0.08), transparent 50%);
-    background-attachment: fixed;
-  }
-
-  /* ---------- Logo neon con leggero sfarfallio da insegna ---------- */
-  .neon-logo{
-    font-family: 'Bebas Neue', sans-serif;
-    letter-spacing: 6px;
-    color: var(--text);
-    text-shadow:
-      0 0 8px rgba(var(--orange-rgb), 0.85),
-      0 0 22px rgba(var(--orange-rgb), 0.55),
-      0 0 50px rgba(var(--teal-rgb), 0.45),
-      0 0 100px rgba(var(--teal-rgb), 0.3);
-    animation: neonFlicker 5s ease-in-out infinite;
-  }
-  @keyframes neonFlicker{
-    0%, 19%, 21%, 23%, 54%, 56%, 100% { opacity: 1; }
-    20%, 22%, 55% { opacity: 0.85; }
-  }
-  @media (prefers-reduced-motion: reduce){
-    .neon-logo{ animation: none; }
-  }
-
-  .glass{
-    background: var(--panel);
-    border: 1px solid var(--line);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
-  .glass-raised{
-    background: var(--panel-raised);
-    border: 1px solid var(--line);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
-
-  /* ---------- Carousel ---------- */
-  #carouselTrack{
-    display: flex;
-    transition: transform 0.55s cubic-bezier(.65,0,.35,1);
-    will-change: transform;
-  }
-  .carousel-slide{ flex: 0 0 100%; padding: 0 10px; }
-  @media (min-width: 640px){ .carousel-slide{ flex-basis: 50%; } }
-  @media (min-width: 1024px){ .carousel-slide{ flex-basis: 33.3333%; } }
-
-  .showcase-card{
-    transition: transform 0.25s ease, border-color 0.25s ease;
-  }
-  .showcase-card:hover{
-    transform: translateY(-4px);
-  }
-
-  .dot{
-    width: 7px; height: 7px; border-radius: 999px;
-    background: var(--line);
-    transition: background 0.2s ease, width 0.2s ease;
-  }
-  .dot.active{ background: var(--orange); width: 22px; }
-
-  .heart-toggle{ color: var(--muted); transition: color 0.15s ease, transform 0.15s ease; }
-  .heart-toggle:hover{ transform: scale(1.15); }
-  .heart-toggle.liked{ color: var(--crimson); }
-
-  .cover-tile{
-    background: linear-gradient(135deg, rgba(var(--orange-rgb),0.18), rgba(var(--teal-rgb),0.18));
-  }
-
-  /* ---------- Barra di caricamento in cima alla pagina ---------- */
-  #loadingBar{
-    position: fixed; top: 0; left: 0; height: 3px; width: 0%;
-    background: linear-gradient(90deg, var(--orange), var(--teal));
-    z-index: 60;
-    transition: width linear;
-  }
-
-  /* ---------- Centro animato: bobina di pellicola + icone cinema/anime ---------- */
-  .reel{ width: 92px; height: 92px; margin: 0 auto; animation: reelSpin 2s linear infinite; }
-  @keyframes reelSpin{ from{ transform: rotate(0deg); } to{ transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce){ .reel{ animation: none; } }
-  .reel-track{ stroke: var(--line); }
-  .reel-dash{ stroke: var(--orange); }
-  .reel-hub{ fill: var(--panel-raised); stroke: var(--teal); }
-  .reel-hole-a{ fill: var(--panel-raised); stroke: var(--orange); }
-  .reel-hole-b{ fill: var(--panel-raised); stroke: var(--teal); }
-
-  .loading-icons{ display:flex; align-items:center; justify-content:center; gap: 20px; margin-top: 14px; font-size: 20px; }
-  .loading-icons i{ display:inline-block; color: var(--muted); animation: iconBob 1.5s ease-in-out infinite; }
-  .loading-icons i:nth-child(1){ animation-delay: 0s; color: var(--orange); }
-  .loading-icons i:nth-child(2){ animation-delay: 0.18s; color: var(--teal); }
-  .loading-icons i:nth-child(3){ animation-delay: 0.36s; color: var(--crimson); }
-  .loading-icons i:nth-child(4){ animation-delay: 0.54s; color: var(--orange); }
-  @keyframes iconBob{ 0%, 100%{ transform: translateY(0); opacity:0.65; } 50%{ transform: translateY(-7px); opacity:1; } }
-
-  .loading-progress-track{ width: 260px; max-width: 70vw; height: 8px; margin: 22px auto 10px; border-radius: 999px; background: var(--panel-raised); border: 1px solid var(--line); overflow: hidden; }
-  .loading-progress-fill{ height: 100%; width: 0%; border-radius: 999px; background: linear-gradient(90deg, var(--orange), var(--teal)); }
-  .loading-percent{ font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text); }
-  .loading-message{ font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--muted); margin-top: 6px; min-height: 16px; }
-</style>
-</head>
-<body class="min-h-screen text-[var(--text)]">
-
-  <div id="loadingBar"></div>
-
-  <!-- ================= HEADER ================= -->
-  <header class="sticky top-0 z-40 glass">
-    <div class="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
-
-      <div class="flex items-center gap-2 shrink-0">
-        <i class="fa-solid fa-clapperboard text-[var(--orange)]"></i>
-        <span class="font-display text-xl tracking-wide">VIDEOTECA</span>
+  <div class="now-watching-section" id="nowWatchingSection">
+    <div class="now-watching-hero" id="nowWatchingHero"></div>
+    <div class="now-watching-side">
+      <div class="now-watching-panel">
+        <h3 class="now-watching-side-title">Episodi successivi</h3>
+        <div class="now-watching-episodes" id="nowWatchingEpisodes"></div>
       </div>
-
-      <div id="greeting" class="text-sm text-[var(--muted)]"></div>
-    </div>
-  </header>
-
-  <!-- ================= HERO ================= -->
-  <section class="max-w-6xl mx-auto px-5 sm:px-8 pt-20 pb-16 text-center">
-    <h1 class="neon-logo text-5xl sm:text-7xl lg:text-8xl font-normal">VIDEOTECA</h1>
-    <p class="mt-6 text-base sm:text-lg text-[var(--muted)] max-w-xl mx-auto">
-      I tuoi film, serie e anime preferiti in un unico posto
-    </p>
-
-    <div class="mt-9">
-      <div class="reel">
-        <svg viewBox="0 0 100 100">
-          <circle class="reel-track" cx="50" cy="50" r="46" fill="none" stroke-width="4"/>
-          <circle class="reel-dash" cx="50" cy="50" r="46" fill="none" stroke-width="4" stroke-dasharray="16 10" stroke-linecap="round"/>
-          <circle class="reel-hub" cx="50" cy="50" r="10" stroke-width="3"/>
-          <circle class="reel-hole-a" cx="50" cy="20" r="8.5" stroke-width="2.5"/>
-          <circle class="reel-hole-b" cx="76" cy="65" r="8.5" stroke-width="2.5"/>
-          <circle class="reel-hole-a" cx="24" cy="65" r="8.5" stroke-width="2.5"/>
-        </svg>
+      <div class="now-watching-panel">
+        <h3 class="now-watching-side-title">In corso</h3>
+        <div class="now-watching-items" id="nowWatchingItems"></div>
       </div>
-      <div class="loading-icons">
-        <i class="fa-solid fa-clapperboard"></i>
-        <i class="fa-solid fa-tv"></i>
-        <i class="fa-solid fa-film"></i>
-        <i class="fa-solid fa-dragon"></i>
-      </div>
-      <div class="loading-progress-track">
-        <div class="loading-progress-fill" id="centerProgressFill"></div>
-      </div>
-      <p class="loading-percent" id="centerProgressPercent">0%</p>
-      <p class="loading-message" id="loadingText">Riavvolgendo le pellicole…</p>
-    </div>
-  </section>
-
-  <!-- ================= COSA GUARDIAMO OGGI ================= -->
-  <section class="max-w-6xl mx-auto px-5 sm:px-8 py-14">
-    <div class="mb-8">
-      <p class="font-mono text-xs tracking-[3px] text-[var(--orange)] mb-2">IN TENDENZA</p>
-      <h2 class="font-display text-3xl sm:text-4xl tracking-wide">Cosa guardiamo oggi</h2>
-    </div>
-
-    <div class="relative">
-      <div class="overflow-hidden">
-        <div id="carouselTrack"></div>
-      </div>
-
-      <button id="prevBtn" aria-label="Precedente" class="hidden sm:flex absolute -left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full glass-raised items-center justify-center hover:border-[var(--orange)] transition">
-        <i class="fa-solid fa-chevron-left"></i>
-      </button>
-      <button id="nextBtn" aria-label="Successivo" class="hidden sm:flex absolute -right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full glass-raised items-center justify-center hover:border-[var(--orange)] transition">
-        <i class="fa-solid fa-chevron-right"></i>
-      </button>
-    </div>
-
-    <div class="flex items-center justify-center gap-2 mt-6" id="dotsWrap"></div>
-
-    <div class="flex justify-center mt-8 sm:hidden gap-3">
-      <button id="prevBtnMobile" class="w-10 h-10 rounded-full glass-raised flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
-      <button id="nextBtnMobile" class="w-10 h-10 rounded-full glass-raised flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
-    </div>
-  </section>
-
-  <!-- ================= I TUOI SALVATI (solo se loggato) ================= -->
-  <section id="salvati" class="max-w-6xl mx-auto px-5 sm:px-8 py-14 hidden">
-    <div class="mb-8">
-      <p class="font-mono text-xs tracking-[3px] text-[var(--teal)] mb-2">LA TUA LIBRERIA</p>
-      <h2 class="font-display text-3xl sm:text-4xl tracking-wide">I tuoi salvati</h2>
-    </div>
-    <div id="savedGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4"></div>
-    <div class="mt-8">
-      <a href="homepage.html" class="inline-flex items-center gap-2 glass-raised text-sm font-semibold px-5 py-2.5 rounded-full hover:border-[var(--teal)] transition">
-        Vedi tutti i salvati <i class="fa-solid fa-arrow-right text-xs"></i>
-      </a>
-    </div>
-  </section>
-
-  <!-- ================= FOOTER ================= -->
-  <footer class="border-t border-[var(--line)] mt-10">
-    <div class="max-w-6xl mx-auto px-5 sm:px-8 py-8 flex items-center justify-center gap-2">
-      <i class="fa-solid fa-clapperboard text-[var(--orange)] text-sm"></i>
-      <span class="font-display text-base tracking-wide">VIDEOTECA</span>
-    </div>
-  </footer>
-
-  <!-- ================= MODALE DETTAGLIO ================= -->
-  <div id="cardModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 p-4">
-    <div class="glass-raised rounded-2xl max-w-lg w-full p-6 relative">
-      <button id="modalClose" class="absolute top-3 right-3 w-8 h-8 rounded-full glass flex items-center justify-center" aria-label="Chiudi">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-      <div id="modalCover" class="cover-tile w-20 h-20 rounded-xl flex items-center justify-center text-3xl mb-4"></div>
-      <div class="flex items-center gap-3 mb-2">
-        <span id="modalType" class="font-mono text-xs tracking-widest px-2 py-0.5 rounded-full border border-[var(--line)]"></span>
-        <span id="modalYear" class="font-mono text-xs text-[var(--muted)]"></span>
-      </div>
-      <h3 id="modalTitle" class="font-display text-2xl tracking-wide mb-2"></h3>
-      <p id="modalDesc" class="text-sm text-[var(--muted)] mb-5"></p>
-      <button id="modalTrailerBtn" class="glass-raised text-sm font-semibold px-5 py-2.5 rounded-full hover:border-[var(--orange)] transition">
-        <i class="fa-solid fa-play"></i> Guarda il trailer
-      </button>
     </div>
   </div>
 
-  <script>
-  (function () {
-    // =========================================================
-    // Dati showcase (contenuto statico della pagina di benvenuto)
-    // =========================================================
-    const TYPE_STYLES = {
-      film: 'color:var(--crimson)',
-      serie: 'color:var(--teal)',
-      anime: 'color:var(--orange)'
+  <div class="favorites-section" id="favoritesSection">
+    <div class="favorites-header" id="favoritesHeader">
+      <h2>Preferiti</h2>
+      <span class="favorites-count" id="favoritesCount">0</span>
+      <div class="favorites-nav-arrows">
+        <button class="favorites-arrow" id="favoritesPrev" title="Precedente" aria-label="Precedente">‹</button>
+        <button class="favorites-arrow" id="favoritesNext" title="Successivo" aria-label="Successivo">›</button>
+      </div>
+    </div>
+    <div class="favorites-carousel" id="favoritesGrid"></div>
+  </div>
+
+  <div class="trending-section" id="myMoviesSection">
+    <div class="trending-header"><h2>I tuoi film</h2></div>
+    <div class="trending-carousel" id="myMoviesCarousel"></div>
+  </div>
+
+  <div class="trending-section" id="mySeriesSection">
+    <div class="trending-header"><h2>Le tue serie</h2></div>
+    <div class="trending-carousel" id="mySeriesCarousel"></div>
+  </div>
+
+  <div class="genres-section" id="genresSection">
+    <div class="genres-header"><h2>Generi Popolari</h2></div>
+    <div class="genres-carousel" id="genresCarousel"></div>
+  </div>
+
+  <div class="trending-section" id="trendingTvSection">
+    <div class="trending-header"><h2>Serie TV del momento</h2></div>
+    <div class="trending-carousel" id="trendingTvCarousel"></div>
+  </div>
+
+  <div class="trending-section" id="trendingMoviesSection">
+    <div class="trending-header"><h2>Film del momento</h2></div>
+    <div class="trending-carousel" id="trendingMoviesCarousel"></div>
+  </div>
+
+
+</div>
+
+<div class="overlay" id="confirmOverlay" style="display:none;">
+  <div class="modal">
+    <h2>Conferma</h2>
+    <p id="confirmMessage"></p>
+    <div class="modal-actions">
+      <button class="btn ghost" id="confirmNo">Annulla</button>
+      <button class="btn primary" id="confirmYes">Rimuovi</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ATTENZIONE: sostituisci questo indirizzo con l'URL del tuo server
+  // dopo averlo pubblicato su Render (vedi la guida ricevuta in chat).
+  const API_BASE = 'https://videoteca-backend.onrender.com/api';
+
+  function getToken(){
+    return localStorage.getItem('videoteca-token') || sessionStorage.getItem('videoteca-token');
+  }
+  function getStoredUsername(){
+    return localStorage.getItem('videoteca-username') || sessionStorage.getItem('videoteca-username');
+  }
+  function redirectToLogin(){
+    localStorage.removeItem('videoteca-token'); sessionStorage.removeItem('videoteca-token');
+    localStorage.removeItem('videoteca-username'); sessionStorage.removeItem('videoteca-username');
+    window.location.replace('index.html');
+  }
+
+  async function apiFetch(path, options = {}){
+    const token = getToken();
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+    if(token) headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch(API_BASE + path, Object.assign({}, options, { headers }));
+    let data = null;
+    try{ data = await res.json(); }catch(e){ /* risposta vuota */ }
+    if(!res.ok){
+      const err = new Error((data && data.error) || ('Errore del server (' + res.status + ').'));
+      err.status = res.status;
+      throw err;
+    }
+    return data;
+  }
+
+  let shows = [];
+  let mediaFilter = 'all';
+  const seasonEpisodeNamesCache = new Map(); // 'tvId:season' -> Promise<{[episodeNumber]: {name, stillUrl, runtime}}>
+
+  function getSeasonEpisodeNames(tvId, season){
+    const key = tvId + ':' + season;
+    if(seasonEpisodeNamesCache.has(key)) return seasonEpisodeNamesCache.get(key);
+    const promise = apiFetch('/catalog/episodes?tvId=' + encodeURIComponent(tvId) + '&season=' + season)
+      .then(list => {
+        const map = {};
+        (list || []).forEach(e => { if(e && e.episodeNumber) map[e.episodeNumber] = e; });
+        return map;
+      })
+      .catch(() => {
+        seasonEpisodeNamesCache.delete(key); // fallita: non tenere in cache un fallimento, riprova al prossimo render
+        return null;
+      });
+    seasonEpisodeNamesCache.set(key, promise);
+    return promise;
+  }
+
+  // Per i titoli aggiunti prima che salvassimo il tmdbId, lo recupera cercando
+  // il titolo su TMDB e lo salva sulla scheda per non doverlo rifare in futuro.
+  const tmdbIdResolveCache = new Map(); // 'tipo:titolo' -> Promise<tmdbId|null>, evita ricerche duplicate in parallelo
+  async function resolveTmdbId(show){
+    if(show.tmdbId) return show.tmdbId;
+    const wantedType = show.type === 'film' ? 'movie' : 'tv';
+    const key = wantedType + ':' + show.title.trim().toLowerCase();
+    if(tmdbIdResolveCache.has(key)) return tmdbIdResolveCache.get(key);
+
+    const promise = apiFetch('/catalog/search?query=' + encodeURIComponent(show.title))
+      .then(results => {
+        const matches = (results || []).filter(r => r.mediaType === wantedType);
+        if(matches.length === 0) return null;
+        const target = show.title.trim().toLowerCase();
+        const exact = matches.find(r => r.title.trim().toLowerCase() === target);
+        const chosen = exact || matches[0];
+        show.tmdbId = chosen.tmdbId;
+        saveShows();
+        return chosen.tmdbId;
+      })
+      .catch(() => {
+        tmdbIdResolveCache.delete(key);
+        return null;
+      });
+    tmdbIdResolveCache.set(key, promise);
+    return promise;
+  }
+
+  // ---- "Del momento" (serie TV e film di tendenza da TMDB, non legati alla collezione) ----
+  const trendingCache = {}; // 'tv'|'movie' -> Promise<risultati|null>, una sola richiesta per sessione
+
+  function fetchTrending(type){
+    if(trendingCache[type]) return trendingCache[type];
+    const promise = apiFetch('/catalog/trending?type=' + type)
+      .catch((err) => {
+        console.error('Errore nel caricamento dei contenuti di tendenza (' + type + '): [' + (err && err.status) + '] ' + (err && err.message));
+        delete trendingCache[type]; // fallita: riprova al prossimo render invece di restare bloccati su null
+        return null;
+      });
+    trendingCache[type] = promise;
+    return promise;
+  }
+
+  // Un titolo "del momento" è già nello scaffale se c'è uno show con lo stesso tmdbId e lo stesso tipo.
+  function isInShelf(item){
+    const wantedType = item.mediaType === 'movie' ? 'film' : 'serie';
+    return shows.some(s => s.tmdbId === item.tmdbId && s.type === wantedType);
+  }
+
+  function applyAddButtonState(btn, added){
+    btn.textContent = added ? '✓' : '+';
+  }
+
+  function buildTrendingCard(item){
+    const card = document.createElement('div');
+    card.className = 'trending-card';
+    card.innerHTML = `
+      <div class="trending-poster">
+        ${item.posterUrl ? `<img src="${item.posterUrl}" alt="" loading="lazy">` : '🎬'}
+        <button type="button" class="trending-add" data-action="add" title="Aggiungi allo scaffale">+</button>
+      </div>
+      ${item.rating ? `<span class="trending-rating">★ ${item.rating}</span>` : ''}
+      <div class="trending-title">${escapeHtml(item.title)}${item.year ? ` <span class="trending-year">(${escapeHtml(item.year)})</span>` : ''}</div>
+    `;
+    const addBtn = card.querySelector('.trending-add');
+    applyAddButtonState(addBtn, isInShelf(item));
+    addBtn.onclick = (e) => {
+      e.stopPropagation();
+      addFromTrending(item, addBtn);
     };
+    return card;
+  }
 
-    const showcaseItems = [
-      { type: 'film', icon: 'fa-film', title: 'Blade Runner 2049', year: '2017', desc: 'Un giovane blade runner scopre un segreto sepolto da decenni.' },
-      { type: 'serie', icon: 'fa-tv', title: 'Breaking Bad', year: '2008–2013', desc: 'La trasformazione di un insegnante in produttore di metanfetamina.' },
-      { type: 'anime', icon: 'fa-dragon', title: 'Attack on Titan', year: '2013–2023', desc: "L'umanità si rifugia dietro enormi mura contro i Titani." },
-      { type: 'film', icon: 'fa-film', title: 'Interstellar', year: '2014', desc: 'Un viaggio oltre le stelle per salvare l\'umanità.' },
-      { type: 'serie', icon: 'fa-tv', title: 'Dark', year: '2017–2020', desc: 'Quattro famiglie, una piccola città e un mistero che attraversa il tempo.' },
-      { type: 'anime', icon: 'fa-dragon', title: 'Fullmetal Alchemist: Brotherhood', year: '2009–2010', desc: 'Due fratelli alchimisti cercano la Pietra Filosofale.' }
-    ];
+  async function addFromTrending(item, addBtn){
+    if(addBtn.dataset.busy === '1') return; // evita doppio clic mentre una richiesta è già in corso
 
-    // =========================================================
-    // Carousel "Cosa guardiamo oggi"
-    // =========================================================
-    const track = document.getElementById('carouselTrack');
-    const dotsWrap = document.getElementById('dotsWrap');
-    let currentSlide = 0;
-    let autoTimer = null;
+    // Se il titolo è già nello scaffale, un secondo clic sullo stesso tasto lo rimuove.
+    if(isInShelf(item)){
+      const wantedType = item.mediaType === 'movie' ? 'film' : 'serie';
+      const existing = shows.find(s => s.tmdbId === item.tmdbId && s.type === wantedType);
+      if(existing){
+        shows = shows.filter(s => s.id !== existing.id);
+        saveShows();
+        render();
+        showNotice(`"${existing.title}" rimosso dallo scaffale.`);
+      }
+      return;
+    }
 
-    function renderCarousel(){
-      track.innerHTML = showcaseItems.map((item, i) => `
-        <div class="carousel-slide">
-          <div class="showcase-card glass rounded-2xl overflow-hidden cursor-pointer h-full flex flex-col" data-index="${i}">
-            <div class="cover-tile h-40 flex items-center justify-center text-4xl relative">
-              <i class="fa-solid ${item.icon}" style="${TYPE_STYLES[item.type]}"></i>
-              <button type="button" class="heart-toggle absolute top-3 right-3" title="Preferito" aria-label="Preferito">
-                <i class="fa-solid fa-heart"></i>
-              </button>
-            </div>
-            <div class="p-4 flex flex-col gap-1 flex-1">
-              <div class="flex items-center justify-between">
-                <span class="font-mono text-xs tracking-widest text-[var(--muted)]">${item.type.toUpperCase()}</span>
-                <span class="font-mono text-xs text-[var(--muted)]">${item.year}</span>
-              </div>
-              <h3 class="font-display text-xl tracking-wide">${item.title}</h3>
-            </div>
-          </div>
+    addBtn.dataset.busy = '1';
+    addBtn.textContent = '…';
+
+    let details;
+    try{
+      details = await apiFetch('/catalog/details?id=' + item.tmdbId + '&type=' + item.mediaType);
+    }catch(e){
+      if(e.status === 401){ redirectToLogin(); return; }
+      showNotice('Impossibile recuperare i dettagli: ' + e.message);
+      addBtn.dataset.busy = '';
+      addBtn.textContent = '+';
+      return;
+    }
+
+    shows.unshift({
+      id: uid(),
+      title: details.title,
+      type: details.type,
+      rating: 0,
+      favorite: false,
+      episodeRuntime: details.episodeRuntime || null,
+      posterUrl: details.posterUrl || item.posterUrl || null,
+      backdropUrl: details.backdropUrl || null,
+      tmdbId: item.tmdbId || null,
+      lastModifiedAt: Date.now(),
+      seasons: details.seasons
+    });
+    saveShows();
+    addBtn.dataset.busy = '';
+    render();
+
+    showNotice('"' + details.title + '" aggiunto alla videoteca.');
+  }
+
+  // ---- "I tuoi film" (i film già nello scaffale, con la stessa card di "Film del momento") ----
+  const movieStatsCache = new Map(); // movieId -> Promise<{voteAverage}|null>
+
+  function fetchMovieStats(movieId){
+    if(movieStatsCache.has(movieId)) return movieStatsCache.get(movieId);
+    const promise = apiFetch('/catalog/movie-stats?movieId=' + encodeURIComponent(movieId))
+      .catch(() => {
+        movieStatsCache.delete(movieId); // fallita: riprova al prossimo render
+        return null;
+      });
+    movieStatsCache.set(movieId, promise);
+    return promise;
+  }
+
+  function buildMyMovieCard(show){
+    const card = document.createElement('div');
+    card.className = 'trending-card my-movie-card';
+    card.innerHTML = `
+      <button type="button" class="my-movie-remove" data-action="remove" title="Rimuovi dallo scaffale">✕</button>
+      <div class="trending-poster">${show.posterUrl ? `<img src="${show.posterUrl}" alt="" loading="lazy">` : '🎬'}</div>
+      <div class="trending-title">${escapeHtml(show.title)}</div>
+      <div class="my-shelf-stats"></div>
+      <div class="my-movie-footer">
+        <div class="stars">
+          ${[1,2,3,4,5].map(n => `<span class="star ${show.rating >= n ? 'on' : ''}" data-value="${n}">★</span>`).join('')}
         </div>
-      `).join('');
+        <button type="button" class="my-movie-heart ${show.favorite ? 'on' : ''}" data-action="favorite" title="${show.favorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}">${show.favorite ? '♥' : '♡'}</button>
+      </div>
+    `;
 
-      dotsWrap.innerHTML = showcaseItems.map((_, i) => `<span class="dot ${i === 0 ? 'active' : ''}" data-dot="${i}"></span>`).join('');
+    card.querySelectorAll('.star').forEach(starEl => {
+      starEl.onclick = (e) => {
+        e.stopPropagation();
+        const value = parseInt(starEl.dataset.value, 10);
+        show.rating = (show.rating === value) ? 0 : value; // clic sulla stessa stella già selezionata azzera il voto
+        touchShow(show);
+        saveShows(); render();
+      };
+    });
 
-      track.querySelectorAll('.showcase-card').forEach(card => {
-        card.addEventListener('click', (e) => {
-          if (e.target.closest('.heart-toggle')) {
-            e.target.closest('.heart-toggle').classList.toggle('liked');
-            return;
-          }
-          openModal(parseInt(card.dataset.index, 10));
-        });
-      });
-
-      dotsWrap.querySelectorAll('.dot').forEach(dot => {
-        dot.addEventListener('click', () => goToSlide(parseInt(dot.dataset.dot, 10)));
-      });
-    }
-
-    function slidesPerView(){
-      if (window.innerWidth >= 1024) return 3;
-      if (window.innerWidth >= 640) return 2;
-      return 1;
-    }
-
-    function maxIndex(){ return Math.max(0, showcaseItems.length - slidesPerView()); }
-
-    function updateCarousel(){
-      const slide = track.querySelector('.carousel-slide');
-      if (!slide) return;
-      const slideWidth = slide.getBoundingClientRect().width;
-      track.style.transform = `translateX(-${currentSlide * slideWidth}px)`;
-      dotsWrap.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === currentSlide));
-    }
-
-    function goToSlide(i){
-      currentSlide = Math.min(Math.max(i, 0), maxIndex());
-      updateCarousel();
-    }
-
-    function nextSlide(){ goToSlide(currentSlide >= maxIndex() ? 0 : currentSlide + 1); }
-    function prevSlide(){ goToSlide(currentSlide <= 0 ? maxIndex() : currentSlide - 1); }
-
-    function startAutoplay(){
-      clearInterval(autoTimer);
-      autoTimer = setInterval(nextSlide, 4000);
-    }
-
-    document.getElementById('nextBtn').onclick = () => { nextSlide(); startAutoplay(); };
-    document.getElementById('prevBtn').onclick = () => { prevSlide(); startAutoplay(); };
-    document.getElementById('nextBtnMobile').onclick = () => { nextSlide(); startAutoplay(); };
-    document.getElementById('prevBtnMobile').onclick = () => { prevSlide(); startAutoplay(); };
-
-    const carouselWrap = track.closest('section');
-    carouselWrap.addEventListener('mouseenter', () => clearInterval(autoTimer));
-    carouselWrap.addEventListener('mouseleave', startAutoplay);
-
-    window.addEventListener('resize', updateCarousel);
-
-    renderCarousel();
-    updateCarousel();
-    startAutoplay();
-
-    // =========================================================
-    // Modale dettaglio
-    // =========================================================
-    const modal = document.getElementById('cardModal');
-    function openModal(i){
-      const item = showcaseItems[i];
-      document.getElementById('modalCover').innerHTML = `<i class="fa-solid ${item.icon}" style="${TYPE_STYLES[item.type]}"></i>`;
-      document.getElementById('modalType').textContent = item.type.toUpperCase();
-      document.getElementById('modalType').style.cssText += ';' + TYPE_STYLES[item.type];
-      document.getElementById('modalYear').textContent = item.year;
-      document.getElementById('modalTitle').textContent = item.title;
-      document.getElementById('modalDesc').textContent = item.desc;
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-    }
-    function closeModal(){
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-    }
-    document.getElementById('modalClose').onclick = closeModal;
-    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
-    document.getElementById('modalTrailerBtn').onclick = () => {
-      document.getElementById('modalTrailerBtn').innerHTML = '<i class="fa-solid fa-circle-info"></i> Trailer in arrivo prossimamente';
+    card.querySelector('.my-movie-heart').onclick = (e) => {
+      e.stopPropagation();
+      show.favorite = !show.favorite;
+      touchShow(show);
+      saveShows(); render();
     };
 
-    // =========================================================
-    // Saluto e stato di accesso — questa pagina è già "protetta"
-    // dalla guardia in testa al file, quindi qui l'utente è sempre loggato.
-    // =========================================================
-    const TOKEN_KEY = 'videoteca-token';
-    const USERNAME_KEY = 'videoteca-username';
+    card.querySelector('.my-movie-remove').onclick = async (e) => {
+      e.stopPropagation();
+      if(!(await showConfirm(`Rimuovere "${show.title}" dallo scaffale?`))) return;
+      shows = shows.filter(s => s.id !== show.id);
+      saveShows();
+      render();
+      showNotice(`"${show.title}" rimosso dallo scaffale.`);
+    };
 
-    // ATTENZIONE: sostituisci questo indirizzo con l'URL del tuo server
-    // dopo averlo pubblicato su Render (stessa riga già vista negli altri file).
-    const API_BASE = 'https://videoteca-backend.onrender.com/api';
-
-    function getToken(){
-      return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
-    }
-    function getStoredUsername(){
-      return localStorage.getItem(USERNAME_KEY) || sessionStorage.getItem(USERNAME_KEY);
-    }
-    // Escape HTML: trasforma i caratteri speciali (<, >, &, ") in entità sicure,
-    // così un username contenente codice HTML/JS non può essere eseguito.
-    // Stessa funzione già usata in search.html, homepage.html e profilo.html.
-    function escapeHtml(str) {
-      const div = document.createElement('div');
-      div.textContent = str;
-      return div.innerHTML;
-    }
-
-    const username = getStoredUsername();
-    const greetingEl = document.getElementById('greeting');
-    if (greetingEl && username) {
-      greetingEl.innerHTML = `Bentornato, <strong class="text-[var(--text)]">${escapeHtml(username)}</strong>`;
-    }
-
-    // =========================================================
-    // Redirect automatico alla homepage dopo il caricamento (5 secondi netti)
-    // =========================================================
-    const REDIRECT_AFTER_MS = 5000;
-    const loadingBar = document.getElementById('loadingBar');
-    const centerFill = document.getElementById('centerProgressFill');
-    const centerPercent = document.getElementById('centerProgressPercent');
-    const loadingTextEl = document.getElementById('loadingText');
-    let redirected = false;
-
-    function goToHomepage(){
-      if (redirected) return;
-      redirected = true;
-      window.location.href = 'homepage.html';
-    }
-
-    // Le due barre si riempiono con una transizione CSS sincronizzata con il timer
-    requestAnimationFrame(() => {
-      loadingBar.style.transitionDuration = REDIRECT_AFTER_MS + 'ms';
-      loadingBar.style.width = '100%';
-      centerFill.style.transition = 'width ' + REDIRECT_AFTER_MS + 'ms linear';
-      centerFill.style.width = '100%';
+    // Voto medio TMDB (su 10), convertito su scala 5 stelle come richiesto.
+    // Recuperato in background: se manca il tmdbId (film aggiunto prima di questa funzione),
+    // prova prima a recuperarlo cercando il titolo.
+    const statsEl = card.querySelector('.my-shelf-stats');
+    resolveTmdbId(show).then(movieId => {
+      if(!movieId) return;
+      return fetchMovieStats(movieId).then(stats => {
+        if(!stats || !stats.voteAverage) return;
+        const outOfFive = Math.round((stats.voteAverage / 2) * 10) / 10;
+        statsEl.textContent = '★ ' + outOfFive + '/5 TMDB';
+      });
     });
 
-    // Percentuale numerica sincronizzata con la stessa durata
-    const progressStart = performance.now();
-    function tickPercent(now){
-      const elapsed = now - progressStart;
-      const pct = Math.min(100, Math.round((elapsed / REDIRECT_AFTER_MS) * 100));
-      centerPercent.textContent = pct + '%';
-      if (elapsed < REDIRECT_AFTER_MS && !redirected) {
-        requestAnimationFrame(tickPercent);
+    return card;
+  }
+
+  function renderMyMovies(){
+    const section = document.getElementById('myMoviesSection');
+    const carousel = document.getElementById('myMoviesCarousel');
+
+    if(mediaFilter !== 'film'){
+      section.style.display = 'none';
+      return;
+    }
+
+    const movies = shows.filter(s => s.type === 'film');
+    if(movies.length === 0){
+      section.style.display = 'none';
+      return;
+    }
+
+    section.style.display = 'block';
+    carousel.innerHTML = '';
+    movies.forEach(show => carousel.appendChild(buildMyMovieCard(show)));
+  }
+
+  // ---- "Le tue serie" (stessa card interattiva di "I tuoi film", più le statistiche TMDB della serie) ----
+  const tvStatsCache = new Map(); // tvId -> Promise<{voteAverage, status, numberOfSeasons, numberOfEpisodes}|null>
+
+  function fetchTvStats(tvId){
+    if(tvStatsCache.has(tvId)) return tvStatsCache.get(tvId);
+    const promise = apiFetch('/catalog/tv-stats?tvId=' + encodeURIComponent(tvId))
+      .catch(() => {
+        tvStatsCache.delete(tvId); // fallita: riprova al prossimo render
+        return null;
+      });
+    tvStatsCache.set(tvId, promise);
+    return promise;
+  }
+
+  function buildMySeriesCard(show){
+    const card = document.createElement('div');
+    card.className = 'trending-card my-movie-card';
+    card.innerHTML = `
+      <button type="button" class="my-movie-remove" data-action="remove" title="Rimuovi dallo scaffale">✕</button>
+      <div class="trending-poster">${show.posterUrl ? `<img src="${show.posterUrl}" alt="" loading="lazy">` : '🎬'}</div>
+      <div class="trending-title">${escapeHtml(show.title)}</div>
+      <div class="my-shelf-stats"></div>
+      <div class="my-movie-footer">
+        <div class="stars">
+          ${[1,2,3,4,5].map(n => `<span class="star ${show.rating >= n ? 'on' : ''}" data-value="${n}">★</span>`).join('')}
+        </div>
+        <button type="button" class="my-movie-heart ${show.favorite ? 'on' : ''}" data-action="favorite" title="${show.favorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}">${show.favorite ? '♥' : '♡'}</button>
+      </div>
+    `;
+
+    card.querySelectorAll('.star').forEach(starEl => {
+      starEl.onclick = (e) => {
+        e.stopPropagation();
+        const value = parseInt(starEl.dataset.value, 10);
+        show.rating = (show.rating === value) ? 0 : value;
+        touchShow(show);
+        saveShows(); render();
+      };
+    });
+
+    card.querySelector('.my-movie-heart').onclick = (e) => {
+      e.stopPropagation();
+      show.favorite = !show.favorite;
+      touchShow(show);
+      saveShows(); render();
+    };
+
+    card.querySelector('.my-movie-remove').onclick = async (e) => {
+      e.stopPropagation();
+      if(!(await showConfirm(`Rimuovere "${show.title}" dallo scaffale?`))) return;
+      shows = shows.filter(s => s.id !== show.id);
+      saveShows();
+      render();
+      showNotice(`"${show.title}" rimosso dallo scaffale.`);
+    };
+
+    // Statistiche da TMDB (stagioni, stato, voto medio): recuperate in background e
+    // inserite appena arrivano, senza bloccare la comparsa della card. Se la serie non
+    // ha ancora un tmdbId salvato, prova prima a recuperarlo cercando il titolo.
+    const statsEl = card.querySelector('.my-shelf-stats');
+    resolveTmdbId(show).then(tvId => {
+      if(!tvId) return;
+      return fetchTvStats(tvId).then(stats => {
+        if(!stats) return;
+        const parts = [];
+        if(stats.numberOfSeasons) parts.push(stats.numberOfSeasons + (stats.numberOfSeasons === 1 ? ' stagione' : ' stagioni'));
+        if(stats.status) parts.push(stats.status);
+        if(stats.voteAverage) parts.push('★ ' + stats.voteAverage + ' TMDB');
+        if(parts.length) statsEl.textContent = parts.join(' · ');
+      });
+    });
+
+    return card;
+  }
+
+  function renderMySeries(){
+    const section = document.getElementById('mySeriesSection');
+    const carousel = document.getElementById('mySeriesCarousel');
+
+    if(mediaFilter !== 'serie'){
+      section.style.display = 'none';
+      return;
+    }
+
+    const series = shows.filter(s => s.type === 'serie');
+    if(series.length === 0){
+      section.style.display = 'none';
+      return;
+    }
+
+    section.style.display = 'block';
+    carousel.innerHTML = '';
+    series.forEach(show => carousel.appendChild(buildMySeriesCard(show)));
+  }
+
+  const trendingRendered = { tv: false, movie: false }; // già costruito in DOM: non ripetere il fetch/render ad ogni render()
+  const trendingCardRefs = { tv: [], movie: [] }; // { item, btn } per ogni card già costruita, per risincronizzare lo stato del "+"
+
+  function renderTrendingType(type, section, carousel){
+    if(trendingRendered[type]){
+      section.style.display = 'block';
+      return;
+    }
+    fetchTrending(type).then(results => {
+      if(!results || results.length === 0){ section.style.display = 'none'; return; }
+      trendingRendered[type] = true;
+      section.style.display = 'block';
+      carousel.innerHTML = '';
+      trendingCardRefs[type] = [];
+      results.forEach(item => {
+        const card = buildTrendingCard(item);
+        carousel.appendChild(card);
+        trendingCardRefs[type].push({ item, btn: card.querySelector('.trending-add') });
+      });
+    });
+  }
+
+  // Riallinea lo stato "+"/"✓" di ogni card già costruita al reale contenuto dello scaffale
+  // (chiamata ad ogni render(): copre sia l'aggiunta sia la rimozione di un titolo).
+  function syncTrendingAddButtons(){
+    trendingCardRefs.tv.forEach(({item, btn}) => applyAddButtonState(btn, isInShelf(item)));
+    trendingCardRefs.movie.forEach(({item, btn}) => applyAddButtonState(btn, isInShelf(item)));
+  }
+
+  function renderTrending(){
+    const tvSection = document.getElementById('trendingTvSection');
+    const moviesSection = document.getElementById('trendingMoviesSection');
+
+    if(mediaFilter !== 'all'){
+      tvSection.style.display = 'none';
+      moviesSection.style.display = 'none';
+      return;
+    }
+
+    renderTrendingType('tv', tvSection, document.getElementById('trendingTvCarousel'));
+    renderTrendingType('movie', moviesSection, document.getElementById('trendingMoviesCarousel'));
+    syncTrendingAddButtons();
+  }
+
+  // ---- "Generi Popolari" (da TMDB, non legati alla collezione) ----
+  // Colore tema per ciascun genere (r,g,b), stesso ID usato dal backend in POPULAR_GENRES.
+  const GENRE_TINTS = {
+    28: '224,64,45',     // Azione — rosso fuoco
+    35: '235,169,42',    // Commedia — giallo/ambra
+    18: '58,79,138',     // Dramma — blu notte
+    27: '69,32,84',      // Horror — viola scuro
+    10749: '214,73,122', // Romantico — rosa
+    878: '32,150,178',   // Fantascienza — ciano
+    16: '214,111,42',    // Animazione — arancio caldo
+    80: '120,30,30',     // Crime — rosso scuro
+    14: '58,140,90',     // Fantasy — verde smeraldo
+    99: '75,99,101'      // Documentario — grigio-teal
+  };
+
+  let genresRendered = false; // già costruito in DOM: non ripetere il fetch/render ad ogni render()
+  let genresPromise = null;
+
+  function fetchGenres(){
+    if(genresPromise) return genresPromise;
+    genresPromise = apiFetch('/catalog/genres')
+      .catch(() => {
+        genresPromise = null; // fallita: riprova al prossimo render
+        return null;
+      });
+    return genresPromise;
+  }
+
+  function buildGenreCard(genre){
+    const card = document.createElement('div');
+    card.className = 'genre-card';
+    card.style.setProperty('--genre-tint', GENRE_TINTS[genre.id] || '120,120,120');
+    if(genre.backdropUrl) card.style.backgroundImage = `url("${genre.backdropUrl}")`;
+    card.innerHTML = `<span class="genre-card-name">${escapeHtml(genre.name)}</span>`;
+    return card;
+  }
+
+  function renderGenres(){
+    const section = document.getElementById('genresSection');
+
+    if(mediaFilter !== 'all'){
+      section.style.display = 'none';
+      return;
+    }
+    if(genresRendered){
+      section.style.display = 'block';
+      return;
+    }
+
+    fetchGenres().then(genres => {
+      if(!genres || genres.length === 0){ section.style.display = 'none'; return; }
+      genresRendered = true;
+      section.style.display = 'block';
+      const carousel = document.getElementById('genresCarousel');
+      carousel.innerHTML = '';
+      genres.forEach(genre => carousel.appendChild(buildGenreCard(genre)));
+    });
+  }
+
+  function showNotice(message){
+    const t = document.createElement('div');
+    t.className = 'notice-toast';
+    t.textContent = message;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3200);
+  }
+
+  // Popup di conferma personalizzato (al posto del confirm() nativo del browser).
+  // Uso: if(!(await showConfirm('Messaggio?'))) return;
+  const confirmOverlay = document.getElementById('confirmOverlay');
+  const confirmMessageEl = document.getElementById('confirmMessage');
+  const confirmYesBtn = document.getElementById('confirmYes');
+  const confirmNoBtn = document.getElementById('confirmNo');
+  let confirmResolve = null;
+
+  function closeConfirm(result){
+    confirmOverlay.style.display = 'none';
+    if(confirmResolve){ confirmResolve(result); confirmResolve = null; }
+  }
+  confirmYesBtn.onclick = () => closeConfirm(true);
+  confirmNoBtn.onclick = () => closeConfirm(false);
+  confirmOverlay.onclick = (e) => { if(e.target === confirmOverlay) closeConfirm(false); };
+
+  function showConfirm(message){
+    confirmMessageEl.textContent = message;
+    confirmOverlay.style.display = 'flex';
+    return new Promise(resolve => { confirmResolve = resolve; });
+  }
+
+  async function loadShows(){
+    try{
+      const data = await apiFetch('/shows');
+      shows = Array.isArray(data) ? data : [];
+    }catch(e){
+      if(e.status === 401){ redirectToLogin(); return; }
+      console.error('Errore nel caricamento della collezione', e);
+      shows = [];
+      showNotice('Impossibile contattare il server. Riprova più tardi.');
+    }
+    ensureLastModified();
+  }
+
+  function ensureLastModified(){
+    const now = Date.now();
+    shows.forEach(s => {
+      if(!s.lastModifiedAt) s.lastModifiedAt = now;
+      if(typeof s.favorite !== 'boolean') s.favorite = false;
+    });
+  }
+
+  function saveShows(){
+    apiFetch('/shows', { method:'PUT', body: JSON.stringify(shows) })
+      .catch(e => {
+        if(e.status === 401){ redirectToLogin(); return; }
+        console.error('Errore nel salvataggio della collezione', e);
+        showNotice('Non sono riuscito a salvare i dati sul server.');
+      });
+  }
+
+  function uid(){ return 'id_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+
+  function touchShow(show){
+    show.lastModifiedAt = Date.now();
+  }
+
+  function hashHue(str){
+    let h = 0;
+    for(let i=0;i<str.length;i++){ h = str.charCodeAt(i) + ((h<<5)-h); }
+    return Math.abs(h) % 360;
+  }
+
+  const STATUS_LABELS = {
+    planned: 'Da vedere',
+    watching: 'In corso',
+    completed: 'Completato',
+    dropped: 'Abbandonato'
+  };
+
+  function computeProgress(show){
+    let total = 0, watched = 0;
+    show.seasons.forEach(se => {
+      total += se.episodeCount;
+      watched += se.watched.filter(Boolean).length;
+    });
+    return {total, watched, pct: total ? Math.round((watched/total)*100) : 0};
+  }
+
+  const DROP_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000; // 30 giorni
+
+  function computeStatus(show){
+    const {total, watched} = computeProgress(show);
+    if(total === 0 || watched === 0) return 'planned';
+    if(watched >= total) return 'completed';
+    // stato intermedio: in corso, a meno che non sia inattivo da 30+ giorni
+    const last = show.lastModifiedAt || 0;
+    if(Date.now() - last > DROP_THRESHOLD_MS) return 'dropped';
+    return 'watching';
+  }
+
+  // Trova il primo episodio non ancora segnato come visto, per sapere "a che punto" si è rimasti.
+  function getNextEpisode(show){
+    for(let si = 0; si < show.seasons.length; si++){
+      const se = show.seasons[si];
+      for(let ei = 0; ei < se.watched.length; ei++){
+        if(!se.watched[ei]) return { season: si + 1, episode: ei + 1 };
       }
     }
-    requestAnimationFrame(tickPercent);
+    return null;
+  }
 
-    // Messaggi a tema film/serie/anime, in rotazione durante il caricamento
-    const loadingMessages = [
-      'Riavvolgendo le pellicole…',
-      'Sincronizzando le stagioni…',
-      'Preparando gli anime preferiti…',
-      'Quasi pronto…'
-    ];
-    let msgIndex = 0;
-    const msgInterval = setInterval(() => {
-      msgIndex = (msgIndex + 1) % loadingMessages.length;
-      loadingTextEl.textContent = loadingMessages[msgIndex];
-    }, REDIRECT_AFTER_MS / loadingMessages.length);
+  function filterByMedia(list, media){
+    if(media === 'all') return list;
+    return list.filter(s => s.type === media);
+  }
 
-    const redirectTimer = setTimeout(goToHomepage, REDIRECT_AFTER_MS);
 
-    document.querySelectorAll('a[href="homepage.html"]').forEach(a => {
-      a.addEventListener('click', () => { clearTimeout(redirectTimer); clearInterval(msgInterval); });
-    });
+  function buildFavoriteCard(show){
+    const hue = hashHue(show.title);
+    const gradient = `linear-gradient(160deg, hsla(${hue},45%,26%,1), hsla(${(hue+40)%360},35%,14%,1))`;
 
-    // =========================================================
-    // "I tuoi salvati" — dati reali dal database, solo se loggato
-    // =========================================================
-    async function loadSavedSection(){
-      const token = getToken();
-      const section = document.getElementById('salvati');
-      if (!token) { section.classList.add('hidden'); return; }
+    const card = document.createElement('div');
+    card.className = 'fav-card';
 
-      try {
-        const res = await fetch(API_BASE + '/shows', {
-          headers: { 'Authorization': 'Bearer ' + token }
-        });
-        if (!res.ok) throw new Error('Sessione non valida');
-        const shows = await res.json();
+    const badges = [];
+    if(show.rating > 0) badges.push(`<span class="fav-rating">★ ${show.rating}/5</span>`);
+    if(show.episodeRuntime) badges.push(`<span class="fav-runtime">⏱ ${show.episodeRuntime} min</span>`);
 
-        if (!Array.isArray(shows) || shows.length === 0) {
-          section.classList.add('hidden');
-          return;
-        }
+    card.innerHTML = `
+      <div class="fav-poster" style="background:${gradient};">
+        ${show.posterUrl ? `<img src="${show.posterUrl}" alt="" loading="lazy">` : ''}
+        <button class="fav-remove" title="Rimuovi dai preferiti" data-action="unfavorite">♥</button>
+      </div>
+      ${badges.length ? `<div class="fav-meta">${badges.join('')}</div>` : ''}
+      <div class="fav-title">${escapeHtml(show.title)}</div>
+    `;
 
-        const grid = document.getElementById('savedGrid');
-        grid.innerHTML = shows.slice(0, 6).map(show => `
-          <div class="glass rounded-xl overflow-hidden">
-            <div class="cover-tile h-24 flex items-center justify-center text-2xl">
-              <i class="fa-solid ${show.type === 'film' ? 'fa-film' : 'fa-tv'}" style="color:${show.type === 'film' ? 'var(--crimson)' : 'var(--teal)'}"></i>
-            </div>
-            <p class="text-xs font-semibold px-3 py-2 truncate">${escapeHtml(show.title || '')}</p>
+    card.querySelector('[data-action="unfavorite"]').onclick = () => {
+      show.favorite = false;
+      touchShow(show);
+      saveShows(); render();
+    };
+
+    return card;
+  }
+
+  // Trova, all'interno della stagione che si sta guardando, gli episodi ancora da vedere
+  // dopo quello corrente (fino alla fine della stagione, con un tetto per non allungarsi
+  // all'infinito su stagioni molto lunghe).
+  function getUpcomingEpisodesInSeason(show, limit){
+    const next = getNextEpisode(show);
+    if(!next) return { season: null, episodes: [], remaining: 0 };
+    const season = show.seasons[next.season - 1];
+    const episodeNumbers = [];
+    for(let ei = next.episode; ei < season.watched.length; ei++){
+      episodeNumbers.push(ei + 1); // il prossimo da vedere (next.episode) è già mostrato nell'hero
+    }
+    return {
+      season: next.season,
+      episodes: episodeNumbers.slice(0, limit),
+      remaining: Math.max(0, episodeNumbers.length - limit)
+    };
+  }
+
+  // Mostra in grande la serie "in corso" con il voto più alto (S{n} · E{n} da vedere),
+  // di fianco gli episodi successivi della stagione che si sta guardando e, ancora
+  // di fianco, la lista compatta delle altre serie in corso.
+  function renderNowWatching(){
+    const section = document.getElementById('nowWatchingSection');
+    const hero = document.getElementById('nowWatchingHero');
+    const episodesEl = document.getElementById('nowWatchingEpisodes');
+    const items = document.getElementById('nowWatchingItems');
+
+    if(mediaFilter !== 'all'){
+      section.style.display = 'none';
+      hero.innerHTML = '';
+      episodesEl.innerHTML = '';
+      items.innerHTML = '';
+      return;
+    }
+
+    const watching = shows
+      .filter(s => s.type === 'serie' && computeStatus(s) === 'watching')
+      .sort((a, b) => (b.rating || 0) - (a.rating || 0) || (b.lastModifiedAt || 0) - (a.lastModifiedAt || 0));
+
+    if(watching.length === 0){
+      section.style.display = 'none';
+      hero.innerHTML = '';
+      episodesEl.innerHTML = '';
+      items.innerHTML = '';
+      return;
+    }
+    section.style.display = 'flex';
+
+    const [current, ...rest] = watching;
+    const {total, watched} = computeProgress(current);
+    const next = getNextEpisode(current);
+
+    const heroImage = current.backdropUrl || current.posterUrl;
+    hero.style.backgroundImage = heroImage ? `url("${heroImage}")` : 'none';
+    hero.innerHTML = `
+      <div class="now-watching-hero-content">
+        <div class="now-watching-year">In corso</div>
+        <h2>${escapeHtml(current.title)}</h2>
+        <div class="now-watching-episode-subtitle" id="nowWatchingHeroEpisodeName"></div>
+        <div class="now-watching-hero-meta">
+          <span class="status-badge watching">${STATUS_LABELS.watching}</span>
+          ${next ? `<span class="now-watching-progress">Stagione ${next.season} · Episodio ${next.episode}</span>` : ''}
+          <span class="now-watching-progress">${watched}/${total} episodi</span>
+          ${current.episodeRuntime ? `<span class="runtime-badge">⏱ ${current.episodeRuntime} min/ep</span>` : ''}
+          ${current.rating > 0 ? `<div class="stars">${[1,2,3,4,5].map(n => `<span class="star ${current.rating>=n?'on':''}">★</span>`).join('')}</div>` : ''}
+        </div>
+      </div>
+    `;
+
+    // ---- In corso (le altre serie, di fianco a "Episodi successivi") ----
+    if(rest.length === 0){
+      items.innerHTML = '<div class="now-watching-empty-side">Nessun\'altra serie in corso al momento.</div>';
+    } else {
+      items.innerHTML = '';
+      rest.slice(0, 4).forEach(show => {
+        const {total: t, watched: w} = computeProgress(show);
+        const n = getNextEpisode(show);
+        const row = document.createElement('div');
+        row.className = 'now-watching-item';
+        row.innerHTML = `
+          <div class="now-watching-item-poster">${show.posterUrl ? `<img src="${show.posterUrl}" alt="" loading="lazy">` : ''}</div>
+          <div class="now-watching-item-info">
+            <div class="now-watching-item-title">${escapeHtml(show.title)}</div>
+            <div class="now-watching-item-progress">${n ? `S${n.season} · E${n.episode}` : ''}${n ? ' · ' : ''}${w}/${t}</div>
           </div>
-        `).join('');
+        `;
+        items.appendChild(row);
+      });
+    }
 
-        section.classList.remove('hidden');
-      } catch (e) {
-        section.classList.add('hidden');
+    // ---- Episodi successivi (della stagione della serie mostrata in grande) ----
+    const upcoming = getUpcomingEpisodesInSeason(current, 3);
+    const rowRefsByEpisode = {};
+    if(!next || upcoming.episodes.length === 0){
+      episodesEl.innerHTML = '<div class="now-watching-empty-side">Nessun altro episodio da vedere in questa stagione.</div>';
+    } else {
+      episodesEl.innerHTML = '';
+      upcoming.episodes.forEach(epNumber => {
+        const row = document.createElement('div');
+        row.className = 'now-watching-episode';
+        row.innerHTML = `
+          <div class="now-watching-episode-still" aria-hidden="true"></div>
+          <div class="now-watching-episode-info">
+            <div class="now-watching-episode-top">
+              <span class="now-watching-episode-num">E${epNumber}</span>
+              <span class="now-watching-episode-label">Episodio ${epNumber}</span>
+            </div>
+            <span class="now-watching-episode-runtime">${current.episodeRuntime ? current.episodeRuntime + ' min' : ''}</span>
+          </div>
+        `;
+        episodesEl.appendChild(row);
+        rowRefsByEpisode[epNumber] = {
+          still: row.querySelector('.now-watching-episode-still'),
+          label: row.querySelector('.now-watching-episode-label'),
+          runtime: row.querySelector('.now-watching-episode-runtime')
+        };
+      });
+      if(upcoming.remaining > 0){
+        const more = document.createElement('div');
+        more.className = 'now-watching-episode-more';
+        more.textContent = `+${upcoming.remaining} altri episodi in questa stagione`;
+        episodesEl.appendChild(more);
       }
     }
-    loadSavedSection();
-  })();
-  </script>
 
+    // Sostituisce le etichette generiche con nome, durata e immagine di anteprima veri,
+    // sia nella preview grande (episodio in corso) sia nella lista "Episodi successivi",
+    // appena disponibili da TMDB. Se la serie non ha ancora un tmdbId salvato (aggiunta
+    // prima di questa funzione), prova prima a recuperarlo cercando il titolo; se anche
+    // questo fallisce, o TMDB non ha il dato, restano le etichette generiche senza rompere nulla.
+    if(next){
+      resolveTmdbId(current).then(tvId => {
+        if(!tvId) return;
+        return getSeasonEpisodeNames(tvId, next.season).then(episodesData => {
+          if(!episodesData) return;
+
+          const heroEpisode = episodesData[next.episode];
+          if(heroEpisode && heroEpisode.name){
+            const heroSubtitleEl = document.getElementById('nowWatchingHeroEpisodeName');
+            if(heroSubtitleEl) heroSubtitleEl.textContent = heroEpisode.name;
+          }
+
+          Object.keys(rowRefsByEpisode).forEach(epNumber => {
+            const data = episodesData[epNumber];
+            if(!data) return;
+            const refs = rowRefsByEpisode[epNumber];
+            if(data.name) refs.label.textContent = data.name;
+            if(data.stillUrl) refs.still.innerHTML = `<img src="${data.stillUrl}" alt="" loading="lazy">`;
+            const runtimeMin = data.runtime || current.episodeRuntime;
+            if(runtimeMin) refs.runtime.textContent = runtimeMin + ' min';
+          });
+        });
+      });
+    }
+  }
+
+  function renderFavorites(){
+    const section = document.getElementById('favoritesSection');
+    const carousel = document.getElementById('favoritesGrid');
+    const countEl = document.getElementById('favoritesCount');
+    const favorites = filterByMedia(shows.filter(s => s.favorite), mediaFilter);
+
+    if(favorites.length === 0){
+      section.style.display = 'none';
+      carousel.innerHTML = '';
+      return;
+    }
+
+    section.style.display = 'block';
+    countEl.textContent = favorites.length;
+    carousel.innerHTML = '';
+    favorites.forEach(show => carousel.appendChild(buildFavoriteCard(show)));
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function render(){
+    renderNowWatching();
+    renderFavorites();
+    renderMyMovies();
+    renderMySeries();
+    renderGenres();
+    renderTrending();
+  }
+
+  // ---------- Ricerca online (TMDB) ----------
+  const onlineSearchForm = document.getElementById('onlineSearchForm');
+  const onlineSearchInput = document.getElementById('onlineSearchInput');
+  const onlineSearchLive = document.getElementById('onlineSearchLive');
+  let liveSearchDebounce = null;
+  let liveSearchToken = 0;
+
+  function mediaTypeLabel(mediaType){
+    return mediaType === 'movie' ? 'Film' : 'Serie TV';
+  }
+
+  function closeLiveResults(){
+    onlineSearchLive.style.display = 'none';
+    onlineSearchLive.innerHTML = '';
+  }
+
+  async function fetchCombinedResults(query){
+    let tmdbList;
+    try{
+      tmdbList = await apiFetch('/catalog/search?query=' + encodeURIComponent(query));
+    }catch(e){
+      if(e.status === 401){ redirectToLogin(); }
+      throw e;
+    }
+    return tmdbList || [];
+  }
+
+  function buildResultRow(r){
+    const item = document.createElement('div');
+    item.className = 'online-search-result';
+    item.innerHTML = `
+      <div class="online-search-poster">${r.posterUrl ? `<img src="${r.posterUrl}" alt="">` : '🎬'}</div>
+      <div class="online-search-info">
+        <div class="online-search-title">${escapeHtml(r.title)}${r.year ? ' <span class="online-search-year">(' + escapeHtml(r.year) + ')</span>' : ''}</div>
+        <span class="type-badge ${r.mediaType === 'movie' ? 'film' : 'serie'}">${mediaTypeLabel(r.mediaType)}</span>
+      </div>
+      <button type="button" class="btn primary online-search-add">+ Aggiungi</button>
+    `;
+    item.querySelector('.online-search-add').onclick = (e) => { e.stopPropagation(); addFromOnlineSearch(r, item); };
+    return item;
+  }
+
+  // Suggerimenti live mentre si scrive
+  onlineSearchInput.addEventListener('input', () => {
+    const query = onlineSearchInput.value.trim();
+    clearTimeout(liveSearchDebounce);
+
+    if(!query){
+      closeLiveResults();
+      return;
+    }
+
+    liveSearchDebounce = setTimeout(async () => {
+      const myToken = ++liveSearchToken;
+      onlineSearchLive.style.display = 'block';
+      onlineSearchLive.innerHTML = '<div class="online-search-status">Ricerca in corso…</div>';
+
+      let results;
+      try{
+        results = await fetchCombinedResults(query);
+      }catch(e){
+        if(myToken !== liveSearchToken) return;
+        onlineSearchLive.innerHTML = '<div class="online-search-status">' + escapeHtml(e.message || 'Errore durante la ricerca.') + '</div>';
+        return;
+      }
+      if(myToken !== liveSearchToken) return; // arrivata una ricerca più recente nel frattempo
+
+      if(!results || results.length === 0){
+        onlineSearchLive.innerHTML = '<div class="online-search-status">Nessun risultato per "' + escapeHtml(query) + '".</div>';
+        return;
+      }
+
+      onlineSearchLive.innerHTML = '';
+      results.slice(0, 6).forEach(r => onlineSearchLive.appendChild(buildResultRow(r)));
+
+      const seeAll = document.createElement('button');
+      seeAll.type = 'button';
+      seeAll.className = 'online-search-see-all';
+      seeAll.textContent = 'Vedi tutti i risultati per "' + query + '" →';
+      seeAll.onclick = () => goToSearchPage(query);
+      onlineSearchLive.appendChild(seeAll);
+    }, 350);
+  });
+
+  function goToSearchPage(query){
+    closeLiveResults();
+    window.location.href = 'search.html?q=' + encodeURIComponent(query);
+  }
+
+  onlineSearchForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const query = onlineSearchInput.value.trim();
+    if(!query){ showNotice('Scrivi qualcosa da cercare.'); return; }
+    goToSearchPage(query);
+  });
+
+  // Chiude la tendina se si clicca fuori
+  document.addEventListener('click', (e) => {
+    if(!onlineSearchForm.contains(e.target)) closeLiveResults();
+  });
+
+  async function addFromOnlineSearch(result, itemEl){
+    const addBtn = itemEl.querySelector('.online-search-add');
+    addBtn.disabled = true;
+    addBtn.textContent = 'Attendere…';
+
+    const detailsPath = '/catalog/details?id=' + result.tmdbId + '&type=' + result.mediaType;
+
+    let details;
+    try{
+      details = await apiFetch(detailsPath);
+    }catch(e){
+      if(e.status === 401){ redirectToLogin(); return; }
+      showNotice('Impossibile recuperare i dettagli: ' + e.message);
+      addBtn.disabled = false;
+      addBtn.textContent = '+ Aggiungi';
+      return;
+    }
+
+    shows.unshift({
+      id: uid(),
+      title: details.title,
+      type: details.type,
+      rating: 0,
+      favorite: false,
+      episodeRuntime: details.episodeRuntime || null,
+      posterUrl: details.posterUrl || result.posterUrl || null,
+      backdropUrl: details.backdropUrl || null,
+      tmdbId: result.tmdbId || null,
+      lastModifiedAt: Date.now(),
+      seasons: details.seasons
+    });
+    saveShows();
+    render();
+
+    showNotice('"' + details.title + '" aggiunto alla videoteca.');
+    addBtn.textContent = '✓ Aggiunto';
+  }
+
+  // ---------- Barra di navigazione in alto ----------
+  function setActiveNavLink(link){
+    document.querySelectorAll('.topnav-link').forEach(a => a.classList.remove('active'));
+    link.classList.add('active');
+  }
+
+  document.getElementById('navBoard').onclick = (e) => {
+    e.preventDefault();
+    mediaFilter = 'all'; render();
+    setActiveNavLink(e.currentTarget);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  document.getElementById('navMovies').onclick = (e) => {
+    e.preventDefault();
+    mediaFilter = 'film'; render();
+    setActiveNavLink(e.currentTarget);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  document.getElementById('navSeries').onclick = (e) => {
+    e.preventDefault();
+    mediaFilter = 'serie'; render();
+    setActiveNavLink(e.currentTarget);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  document.getElementById('navStats').onclick = (e) => {
+    e.preventDefault();
+    showNotice('La pagina Statistiche sarà disponibile in futuro.');
+  };
+
+  // ---------- Favorites carousel arrows ----------
+  document.getElementById('favoritesPrev').onclick = () => {
+    document.getElementById('favoritesGrid').scrollBy({ left: -320, behavior: 'smooth' });
+  };
+  document.getElementById('favoritesNext').onclick = () => {
+    document.getElementById('favoritesGrid').scrollBy({ left: 320, behavior: 'smooth' });
+  };
+
+  // ---------- Sessione / Logout ----------
+  const authUser = getStoredUsername();
+  const sessionUserName = document.getElementById('sessionUserName');
+  if (sessionUserName) sessionUserName.textContent = authUser || '';
+
+  // ---------- Avatar ----------
+  const avatarImg = document.getElementById('avatarImg');
+  const avatarInitial = document.getElementById('avatarInitial');
+  const avatarInput = document.getElementById('avatarInput');
+
+  function displayAvatar(dataUrl, usernameForInitial){
+    if(dataUrl){
+      avatarImg.src = dataUrl;
+      avatarImg.style.display = 'block';
+      avatarInitial.style.display = 'none';
+    } else {
+      avatarImg.style.display = 'none';
+      avatarInitial.style.display = 'flex';
+      avatarInitial.textContent = (usernameForInitial || '?').trim().charAt(0).toUpperCase();
+    }
+  }
+
+  async function loadAccountInfo(){
+    try{
+      const me = await apiFetch('/me');
+      if(me && me.username && sessionUserName) sessionUserName.textContent = me.username;
+      displayAvatar(me ? me.avatar : null, me ? me.username : authUser);
+    }catch(e){
+      if(e.status === 401){ redirectToLogin(); return; }
+      displayAvatar(null, authUser);
+    }
+  }
+
+  if(avatarInput) avatarInput.onchange = () => {
+    const file = avatarInput.files && avatarInput.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const size = 160;
+        const canvas = document.createElement('canvas');
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const scale = Math.max(size / img.width, size / img.height);
+        const w = img.width * scale, h = img.height * scale;
+        ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        apiFetch('/me/avatar', { method:'PUT', body: JSON.stringify({ avatar: dataUrl }) })
+          .then(() => displayAvatar(dataUrl, authUser))
+          .catch(err => showNotice('Non sono riuscito a salvare la foto: ' + err.message));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+    avatarInput.value = '';
+  };
+
+  // ---------- Init ----------
+  async function init(){
+    await loadShows();
+    render();
+    loadAccountInfo();
+  }
+  init();
+})();
+</script>
 </body>
 </html>
