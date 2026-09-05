@@ -505,7 +505,7 @@
       section.style.display = 'block';
       carousel.innerHTML = '';
       trendingCardRefs[type] = [];
-      results.forEach(item => {
+      results.slice(0, 15).forEach(item => {
         const card = buildTrendingCard(item);
         carousel.appendChild(card);
         trendingCardRefs[type].push({ item, btn: card.querySelector('.trending-add') });

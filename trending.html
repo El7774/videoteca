@@ -43,6 +43,10 @@
   </div>
 
   <div class="trending-page-grid" id="trendingPageGrid"></div>
+
+  <div style="text-align:center; margin-top: 30px;">
+    <button type="button" class="btn ghost" id="expandBtn" style="display:none;">Mostra altri 100</button>
+  </div>
 </div>
 
 <script>
@@ -262,15 +266,47 @@
   }
 
   // ---------- Init ----------
+  const grid = document.getElementById('trendingPageGrid');
+  const expandBtn = document.getElementById('expandBtn');
+  let currentBatch = 1;
+
+  async function loadBatch(batch){
+    return apiFetch('/catalog/trending?type=' + type + '&page=' + batch);
+  }
+
+  expandBtn.onclick = async () => {
+    expandBtn.disabled = true;
+    expandBtn.textContent = 'Caricamento…';
+    currentBatch += 1;
+
+    let results;
+    try{
+      results = await loadBatch(currentBatch);
+    }catch(e){
+      if(e.status === 401){ redirectToLogin(); return; }
+      showNotice('Impossibile caricare altri titoli: ' + e.message);
+      currentBatch -= 1;
+      expandBtn.disabled = false;
+      expandBtn.textContent = 'Mostra altri 100';
+      return;
+    }
+
+    (results || []).forEach(item => grid.appendChild(buildTrendingCard(item)));
+
+    expandBtn.disabled = false;
+    expandBtn.textContent = 'Mostra altri 100';
+    // Se TMDB ha restituito meno di 100 titoli, non ce ne sono altri da mostrare.
+    if(!results || results.length < 100) expandBtn.style.display = 'none';
+  };
+
   async function init(){
-    const grid = document.getElementById('trendingPageGrid');
     grid.innerHTML = '<div class="trending-page-empty">Caricamento…</div>';
 
     await loadShows();
 
     let results;
     try{
-      results = await apiFetch('/catalog/trending?type=' + type);
+      results = await loadBatch(currentBatch);
     }catch(e){
       if(e.status === 401){ redirectToLogin(); return; }
       grid.innerHTML = '<div class="trending-page-empty">' + escapeHtml(e.message || 'Errore durante il caricamento.') + '</div>';
@@ -284,6 +320,8 @@
 
     grid.innerHTML = '';
     results.forEach(item => grid.appendChild(buildTrendingCard(item)));
+
+    if(results.length >= 100) expandBtn.style.display = '';
   }
   init();
 })();
