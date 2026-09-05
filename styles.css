@@ -260,6 +260,7 @@
 
   .genre-card{
     position:relative;
+    text-decoration: none;
     flex: 0 0 170px;
     width: 170px;
     height: 100px;

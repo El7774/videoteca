@@ -564,8 +564,9 @@
   }
 
   function buildGenreCard(genre){
-    const card = document.createElement('div');
+    const card = document.createElement('a');
     card.className = 'genre-card';
+    card.href = 'genre.html?id=' + encodeURIComponent(genre.id) + '&name=' + encodeURIComponent(genre.name);
     card.style.setProperty('--genre-tint', GENRE_TINTS[genre.id] || '120,120,120');
     if(genre.backdropUrl) card.style.backgroundImage = `url("${genre.backdropUrl}")`;
     card.innerHTML = `<span class="genre-card-name">${escapeHtml(genre.name)}</span>`;
